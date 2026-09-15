@@ -1,0 +1,101 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--vq-surface);
+  border: 1px solid var(--vq-border);
+  border-radius: 8px;
+}
+
+.header {
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--vq-border);
+  background: linear-gradient(180deg, var(--vq-ai-tint) 0%, var(--vq-surface) 100%);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--vq-secondary);
+}
+
+.body {
+  flex: 1;
+  padding: 1.15rem;
+}
+
+.intro {
+  margin: 0 0 0.75rem;
+  color: var(--vq-text);
+  font-size: 0.9375rem;
+}
+
+.note {
+  margin: 0;
+  color: var(--vq-secondary);
+  font-size: 0.8125rem;
+}
+
+.composer {
+  padding: 1rem 1.15rem 1.15rem;
+  border-top: 1px solid var(--vq-border);
+  background: #fcfcfd;
+}
+
+.composerLabel {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+
+.composerInput {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+  background: #f3f4f6;
+  color: var(--vq-secondary);
+  resize: vertical;
+}
+
+.composerHint {
+  margin: 0.45rem 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--vq-secondary);
+}
+
+.composerActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.uploadButton,
+.sendButton {
+  min-height: 2.15rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid var(--vq-border);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.uploadButton {
+  background: var(--vq-surface);
+  color: var(--vq-text);
+}
+
+.sendButton {
+  margin-left: auto;
+  color: #fff;
+  background: var(--vq-primary);
+  border-color: var(--vq-primary);
+}

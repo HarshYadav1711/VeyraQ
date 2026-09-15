@@ -83,20 +83,31 @@ Do not start a later phase by breaking earlier demos.
 **Status:** Complete.
 ---
 
-## Phase 3 — Dual-pane UI shell
+## Phase 3 — Complaint review workspace UI
 
-**Goal:** Implement DESIGN.md layout with tokens, form sections, Copilot chrome, status display.
+**Goal:** Implement the permanent dual-pane complaint intake/review workspace (form + Assistant shell) with Redux-backed editing, provenance, and responsive segmented layout—without AI or API.
 
 **Includes:**
-- Left form sections for all core field groups
-- Right Copilot panel layout (input, upload affordance, message list UI)
-- Provenance presentation components
-- Commit button disabled/enabled wiring to status (even if backend commit comes later)
+- Log Customer Complaint form for all canonical field groups
+- Direct editing via `setUserField`
+- Provenance / missing / recently-updated presentation
+- Status badge + disabled Commit until `ready_to_commit`
+- Reset with confirmation
+- VeyraQ Assistant shell (inactive composer)
+- Desktop split + mobile segmented panes
+- UI tests
+
+**Excludes:**
+- Complaint API, persistence, LangGraph, Groq, document parsing
+- Fake AI responses / fake extraction / completeness / risk generation
 
 **Exit criteria:**
-- Desktop dual-pane matches design direction
-- Missing fields show “Not provided”
-- No marketing-page aesthetic
+- Workspace renders form + assistant
+- Editing updates Redux only for touched fields
+- Commit disabled until ready; highlight clears via UI timer
+- Frontend build + tests and backend pytest pass
+
+**Status:** Complete.
 
 ---
 

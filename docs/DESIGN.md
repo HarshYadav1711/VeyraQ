@@ -162,15 +162,25 @@ When a conversational correction updates field(s):
 
 Primary target: **desktop dual-pane** (assessment demo environment).
 
-Working responsive rules:
-- **Wide desktop:** side-by-side form (left) | Copilot / Assistant (right).
-- **Narrow screens (locked):** Assistant / Complaint **segmented views** (not both panes fully competing).
-  - Empty complaint: **Assistant** initially selected.
-  - After successful extraction: **Complaint** review view becomes selected.
-- **Mobile:** same segmented pattern; not the design priority. Avoid hiding commit or status.
+**Implemented (Phase 3):**
+- **≥900px:** split layout — complaint ~62% / assistant ~38%; assistant pane can stick while scrolling.
+- **&lt;900px:** Assistant | Complaint segmented tabs (local UI state, not Redux).
+  - Empty complaint (all field values `null`): Assistant initially selected.
+  - Non-empty complaint: Complaint initially selected.
+  - Manual tab switching always available.
+- Assistant composer is present but **disabled** until the AI workflow is connected (no fake extraction).
 
 Do not build a separate marketing landing layout.
 
+---
+
+## 9a. Phase 3 UI implementation notes
+
+- Design tokens live as CSS custom properties on `:root` in `index.css`.
+- Field highlight for `recentlyUpdatedFields` uses success tint; UI clears the Redux list after ~1.25s (timer owned by UI, not Redux).
+- Provenance labels: Extracted / User edited / AI suggestion · Verify / Not provided (metadata beside fields; never written into input values).
+- Date fields are text inputs to preserve partial precision (e.g. “March 2026”).
+- Commit is disabled unless status is `ready_to_commit`; Reset uses a small modal confirmation.
 ---
 
 ## 10. Accessibility decisions

@@ -4,17 +4,15 @@ import { describe, expect, it } from 'vitest'
 import App from './App'
 
 describe('App', () => {
-  it('renders the VeyraQ foundation shell', () => {
+  it('renders the complaint workspace shell', () => {
     render(<App />)
 
+    expect(screen.getByText('VeyraQ')).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'VeyraQ' }),
+      screen.getByRole('heading', { name: 'Log Customer Complaint' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('AI-Assisted Pharmaceutical Complaint Intelligence'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('Application foundation initialized.'),
+      screen.getByRole('heading', { name: 'VeyraQ Assistant' }),
     ).toBeInTheDocument()
   })
 })

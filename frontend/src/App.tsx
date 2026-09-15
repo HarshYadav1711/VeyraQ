@@ -1,15 +1,12 @@
 import { Provider } from 'react-redux'
 
 import { store } from './app/store'
+import { ComplaintWorkspace } from './features/complaint/components/ComplaintWorkspace'
 
 function App() {
   return (
     <Provider store={store}>
-      <main>
-        <h1>VeyraQ</h1>
-        <p>AI-Assisted Pharmaceutical Complaint Intelligence</p>
-        <p>Application foundation initialized.</p>
-      </main>
+      <ComplaintWorkspace />
     </Provider>
   )
 }

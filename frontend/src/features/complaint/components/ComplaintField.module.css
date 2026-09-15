@@ -1,0 +1,54 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  margin: 0 -0.35rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid transparent;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--vq-text);
+}
+
+.provenance {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--vq-secondary);
+}
+
+.control {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  color: var(--vq-text);
+  background: var(--vq-surface);
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+  resize: vertical;
+}
+
+.control::placeholder {
+  color: #98a2b3;
+}
+
+.inferred .control {
+  background: var(--vq-ai-tint);
+}
+
+.recentlyUpdated {
+  background: var(--vq-success-tint);
+  border-color: #bbf7d0;
+}
