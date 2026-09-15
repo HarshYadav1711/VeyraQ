@@ -139,7 +139,7 @@ Rules:
 raw complaint → intent detection → structured extraction → normalization → validation → completeness check → risk assessment → populate Redux complaint state → human review
 
 ### Document flow
-document upload → text extraction → same structured AI workflow → populate complaint state → human review
+document upload → deterministic text extraction → complaint extraction graph (`extract_complaint` onward; **no** `detect_intent` when input type is already known) → populate complaint state → human review
 
 ### Correction flow (critical)
 Example user message: *"The batch is BMX240602 and affected quantity is 48 capsules."*

@@ -116,13 +116,21 @@ detect_intent
 
 ### Document
 
+**Locked path** (input type already known — do **not** run `detect_intent`):
+
 ```
 extract_document_text
-  → (on success) enter new complaint path from detect_intent or extract_complaint
+  → (on success) extract_complaint
+  → normalize_fields
+  → validate_fields
+  → check_completeness
+  → assess_risk
+  → summarize
+  → END
   → (on failure) END with error
 ```
 
-Exact wiring (whether document text re-enters at `detect_intent` or `extract_complaint`) is an implementation detail; behavior must match PRD.
+Document upload uses deterministic text extraction, then enters the complaint extraction graph at `extract_complaint`.
 
 ### Follow-up
 

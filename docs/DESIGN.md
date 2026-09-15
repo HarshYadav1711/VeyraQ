@@ -153,7 +153,7 @@ When a conversational correction updates field(s):
 - Labels above or clearly associated with inputs (accessible).
 - Group related fields under the five domain sections.
 - Show AI assessment in a dedicated advisory subsection.
-- Direct field edits (if implemented) must mark provenance as user and must not trigger full regeneration of unrelated fields.
+- **Locked:** Direct field editing is supported in MVP. Manual field edits set provenance = `user` and must not trigger full regeneration of unrelated fields.
 - Prefer “Not provided” over blank ambiguity for missing values.
 
 ---
@@ -163,9 +163,11 @@ When a conversational correction updates field(s):
 Primary target: **desktop dual-pane** (assessment demo environment).
 
 Working responsive rules:
-- **Wide desktop:** side-by-side form | Copilot.
-- **Narrow / tablet:** stack vertically—form first or Copilot-first based on task; simplest acceptable approach is Copilot on top for intake, form below for review (exact order can be finalized in implementation without changing tokens).
-- **Mobile:** usable stacked layout; not the design priority. Avoid hiding commit or status.
+- **Wide desktop:** side-by-side form (left) | Copilot / Assistant (right).
+- **Narrow screens (locked):** Assistant / Complaint **segmented views** (not both panes fully competing).
+  - Empty complaint: **Assistant** initially selected.
+  - After successful extraction: **Complaint** review view becomes selected.
+- **Mobile:** same segmented pattern; not the design priority. Avoid hiding commit or status.
 
 Do not build a separate marketing landing layout.
 

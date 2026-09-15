@@ -60,7 +60,7 @@ Anything listed in [PROJECT_CONTEXT.md §13](PROJECT_CONTEXT.md) and §11 of thi
 3. AI extracts, normalizes, validates fields; checks completeness; assesses risk.
 4. Structured result populates the left-pane complaint form (Redux).
 5. User reviews provenance-tagged fields and advisory risk output.
-6. User may correct via Copilot or (where implemented) direct form edit.
+6. User may correct via Copilot or direct form edit (MVP). Manual edits set provenance = user.
 7. When Ready to Commit conditions are met, user explicitly commits.
 8. Record persists as **Committed**.
 

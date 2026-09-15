@@ -6,7 +6,7 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 0 — Documentation (current)
+## Phase 0 — Documentation
 
 **Goal:** Establish authoritative project documentation.
 
@@ -26,29 +26,35 @@ Do not start a later phase by breaking earlier demos.
 - Docs consistent with PROJECT_CONTEXT
 - No application source scaffolding yet (unless a later phase starts)
 
-**Status:** Active / complete when consistency review passes.
+**Status:** Complete.
 
 ---
 
-## Phase 1 — Repository skeleton (runnable empty shells)
+## Phase 1 — Runnable application foundation
 
 **Goal:** Create frontend and backend project skeletons with mandatory stack, without business features.
 
 **Includes:**
-- `frontend/` Vite + React + TypeScript + Redux Toolkit + Inter + CSS Modules baseline
-- `backend/` FastAPI app + health endpoint + settings/env pattern
-- PostgreSQL connection config + Alembic initialized (minimal)
-- Root README updated with run instructions
-- `.env.example` without secrets
+- Monorepo folders `frontend/`, `backend/`
+- Vite + React + TypeScript + Redux Toolkit + Inter baseline
+- FastAPI app with `/api/v1` prefix, CORS, health + readiness
+- Typed pydantic-settings configuration
+- Synchronous SQLAlchemy 2.0 + Alembic foundation (no domain models)
+- Frontend/backend smoke tests
+- `.env.example` files and README run instructions
 
 **Excludes:**
-- LangGraph workflow logic
-- Complaint UI functionality beyond placeholder panes
+- Complaint functionality, LangGraph, Groq, PyMuPDF
+- Dual-pane product UI
+- Domain migrations / complaint persistence beyond DB infrastructure
 
 **Exit criteria:**
-- Frontend dev server runs
-- Backend `/health` returns OK
-- DB migrations can run against local PostgreSQL
+- Frontend builds and smoke-tests
+- Backend `/api/v1/health` returns OK
+- Readiness checks PostgreSQL with `SELECT 1` (503 on failure, no secret leakage)
+- Alembic initialized against application config
+
+**Status:** Complete.
 
 ---
 

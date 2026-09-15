@@ -115,14 +115,25 @@ Status transitions are product rules for this assessment tool, not claims of reg
 
 For this assessment, a complaint is generally **not** Ready to Commit while critical identification or defect understanding is missing.
 
-**Minimum readiness intent (working assumption):**
-- Enough product identity to know what was complained about (`product_name` or clearly equivalent identification), **and**
-- A usable `complaint_description` (from source or user), **and**
-- No blocking validation errors on present fields.
+**Locked Ready-to-Commit minimum fields:**
+- complaint source
+- customer name
+- product name
+- batch / lot number
+- complaint category
+- complaint description
+- completed initial risk assessment
 
-Batch number, dates, quantity, site, and category are **highly desirable** and should drive Needs Information when absent, but exact mandatory set may be refined during implementation **without** inventing regulatory citation requirements.
+Missing any of these critical fields results in **Needs Information**.
 
-Duplicate detection (bonus) does not replace human judgment about whether two complaints are the same event.
+Other fields may legitimately be unavailable and do **not** block Ready to Commit by themselves:
+- affected quantity
+- manufacturing date
+- expiry date
+- originating site block
+- impacted non-product materials (NPM)
+
+Duplicate detection (when implemented) uses **committed** PostgreSQL complaint history plus small fictional seed data for demonstration. No vector database. Duplicate suggestions do not replace human judgment about whether two complaints are the same event.
 
 ---
 

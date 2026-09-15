@@ -130,7 +130,10 @@ Exact routes will be defined during implementation; conceptual groups:
 | `POST /complaints/correct` | Conversational patch |
 | `POST /complaints/{id}/commit` | Explicit human commit |
 | `GET /complaints/{id}` | Retrieve persisted complaint (as needed) |
-| `GET /health` | Service health |
+| `GET /health` | Liveness (`GET /api/v1/health`) |
+| `GET /readiness` | Readiness including DB (`GET /api/v1/readiness`) |
+
+All versioned routes mount under the single prefix **`/api/v1`**.
 
 Request/response contracts use Pydantic models shared conceptually with frontend types.
 
@@ -140,12 +143,12 @@ Request/response contracts use Pydantic models shared conceptually with frontend
 
 | State | Owner |
 | --- | --- |
-| Active draft being edited in UI | Redux (client) |
+| Active draft being edited in UI | Redux (client) until explicit commit |
 | Processing / highlight / Copilot chat UX | Redux or local UI state |
 | AI workflow ephemeral state | LangGraph state object (server, per request) |
-| Committed (and optionally saved draft) records | PostgreSQL |
+| **Committed** complaint records | PostgreSQL only |
 
-Whether intermediate drafts are always persisted server-side before commit is an **open implementation choice** (see §10). Product requirement only mandates persistence on explicit commit; earlier persistence may be added if it simplifies demo reliability without expanding scope.
+**Locked:** Complaint drafts remain client-side in Redux until the user explicitly commits. PostgreSQL stores committed complaints. Do not auto-persist drafts.
 
 ---
 
@@ -209,14 +212,18 @@ Alembic manages migrations. SQLAlchemy 2.x is the ORM.
 
 ---
 
-## 11. Open architectural decisions (deferred)
+## 11. Locked implementation decisions
 
-These are **not** decided arbitrarily in docs:
+| Decision | Choice |
+| --- | --- |
+| Monorepo folders | `frontend/`, `backend/` |
+| API prefix | `/api/v1` |
+| Draft persistence | Client-side Redux only until explicit commit; PostgreSQL stores committed complaints |
+| Duplicate detection source | Committed PostgreSQL history + small fictional seed data; **no** vector database |
+| Database access style | Synchronous SQLAlchemy 2.0 (no async DB stack unless a later requirement justifies it) |
+| Runtimes | Node.js 22 LTS (frontend); Python 3.12 (backend) |
 
-1. Whether drafts auto-save to PostgreSQL before commit, or remain client-side until commit.
-2. Exact REST path naming and versioning (`/api/v1/...` vs flat).
-3. Whether duplicate detection compares against DB records only after some persistence exists.
-4. Exact packaging layout (`backend/`, `frontend/` monorepo) — recommended but not mandated beyond clarity.
-5. Transport for file upload (multipart) details and max size limits.
+## 12. Still open (deferred)
 
-When implementation begins, choose the simplest option that preserves the walkthrough and PROJECT_CONTEXT rules.
+1. Transport for file upload (multipart) details and max size limits.
+2. Exact Groq model ID string (env-configured when AI phase begins).

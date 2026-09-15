@@ -6,26 +6,96 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 
 > Assessment project for the AI Product Engineer internship at AIVOA.
 
-## What it does
+## Status
 
-1. Accepts raw complaint text/email or an uploaded document
-2. Extracts structured complaint fields via a LangGraph + Groq workflow
-3. Populates a Log Customer Complaint form (Redux-backed)
-4. Produces an advisory initial risk assessment
-5. Supports conversational field corrections that patch **only** the fields the user changes
-6. Checks completeness and readiness
-7. Commits only when a human explicitly approves
+Phase 1 complete: runnable frontend/backend foundation (no complaint or AI logic yet).
 
-## Stack (mandatory)
+## Stack
 
 | Layer | Technologies |
 | --- | --- |
 | Frontend | React, TypeScript, Vite, Redux Toolkit, CSS Modules, Inter |
-| Backend | Python, FastAPI, Pydantic, SQLAlchemy 2.x, Alembic |
-| AI | LangGraph StateGraph, Groq |
+| Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy 2.0, Alembic |
 | Database | PostgreSQL |
-| Documents | PyMuPDF (PDF text); TXT/EML where practical |
-| Testing | Pytest, Vitest, Playwright (one critical E2E path) |
+| AI (later) | LangGraph StateGraph, Groq |
+
+## Prerequisites
+
+- Node.js 22 LTS (or compatible with current Vite)
+- Python 3.12
+- PostgreSQL (required for live readiness checks)
+
+## Repository layout
+
+```text
+frontend/   React + Vite application
+backend/    FastAPI application
+docs/       Authoritative project documentation
+```
+
+## Frontend setup
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+App: http://localhost:5173
+
+```bash
+npm run build
+npm test -- --run
+```
+
+`VITE_API_BASE_URL` defaults to `http://localhost:8000/api/v1`.
+
+## Backend setup
+
+```bash
+cd backend
+py -3.12 -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+cp .env.example .env
+```
+
+Start the API:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+- Liveness: `GET http://localhost:8000/api/v1/health`
+- Readiness: `GET http://localhost:8000/api/v1/readiness` (requires PostgreSQL)
+- OpenAPI docs: http://localhost:8000/docs
+
+### Database
+
+Ensure PostgreSQL is running and create a database matching `DATABASE_URL` in `.env` (default database name: `veyraq`).
+
+Alembic is initialized and reads `DATABASE_URL` from application settings. There are no domain migrations in Phase 1.
+
+```bash
+alembic current
+```
+
+### Backend tests
+
+```bash
+cd backend
+pytest
+```
+
+Readiness tests mock the database probe and do not require a live PostgreSQL instance.
 
 ## Documentation
 
@@ -40,10 +110,6 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 | [docs/PHASES.md](docs/PHASES.md) | Incremental implementation plan |
 | [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | LangGraph workflow, provenance, reliability |
 | [docs/DEMO.md](docs/DEMO.md) | Product and code walkthrough demo plan |
-
-## Status
-
-Documentation phase complete. Application scaffolding has not started.
 
 ## Core principle
 
