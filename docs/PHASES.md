@@ -137,24 +137,32 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 5 — LangGraph workflow (text intake)
+## Phase 5 — LangGraph + Groq text complaint intelligence
 
-**Goal:** Implement one StateGraph for new complaint text intake through summarize/risk.
+**Goal:** Implement the first complete AI-assisted text + correction workflow.
 
 **Includes:**
-- Nodes: `detect_intent`, `extract_complaint`, `normalize_fields`, `validate_fields`, `check_completeness`, `assess_risk`, `summarize`
-- Central prompts
-- Groq via env-configured model
-- Pydantic validation of structured outputs
-- FastAPI intake endpoint
-- Frontend wiring: Copilot submit → API → Redux populate
-- Transition drafts to `ready_to_commit` / `needs_information` via completeness
+- Groq service boundary + structured JSON-schema outputs
+- LangGraph StateGraph factory (`build_complaint_graph`)
+- Source extraction with deterministic evidence grounding
+- Correction intent/path with partial patches (`provenance = user`)
+- Advisory risk assessment (`provenance = inferred`)
+- Deterministic completeness → `needs_information` / `ready_to_commit`
+- `POST /api/v1/assistant/process`
+- Working Assistant composer, conversation messages, Redux `applyFieldPatch`
+
+**Excludes:**
+- PDF/OCR/document parsing, duplicates, RCA, CAPA, RAG/embeddings, streaming, voice
 
 **Exit criteria:**
-- Pasting a sample complaint populates the form
-- Missing values remain Not provided
-- Failed LLM response does not wipe prior draft
-- Advisory risk visible
+- Pasting a sample complaint populates the form with grounded `source` values
+- Unsupported extracted facts are dropped (not stored as source)
+- Conversational corrections update only requested fields
+- Failed LLM/provider response does not wipe prior draft
+- Advisory risk visible as AI suggestion · Verify
+- Ready to Commit is reachable; commit remains a human action
+
+**Status:** Complete.
 
 ---
 
@@ -162,15 +170,9 @@ Do not start a later phase by breaking earlier demos.
 
 **Goal:** Critical patch semantics via AI correction path (Redux patch merge already exists).
 
-**Includes:**
-- Correction path nodes: `extract_patch`, `validate_patch`, `apply_patch`, `reassess_affected_outputs_if_required`
-- API correct endpoint
-- Field highlight on updated fields
+Implemented together with Phase 5 text intelligence (correction graph path, `/assistant/process`, field highlight).
 
-**Exit criteria:**
-- AC-3 from PRD passes (only batch + quantity change in the example)
-- Unrelated fields untouched
-- Tests cover patch merge (Pytest and/or Vitest)
+**Status:** Complete (delivered with Phase 5). Do not start document upload in this phase.
 
 ---
 

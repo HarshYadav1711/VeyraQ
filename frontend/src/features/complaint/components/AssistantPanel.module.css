@@ -29,6 +29,8 @@
 .body {
   flex: 1;
   padding: 1.15rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .intro {
@@ -41,6 +43,74 @@
   margin: 0;
   color: var(--vq-secondary);
   font-size: 0.8125rem;
+}
+
+.transcript {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.userMessage,
+.assistantMessage {
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+}
+
+.userMessage {
+  background: #f8fafc;
+}
+
+.assistantMessage {
+  background: var(--vq-ai-tint);
+  border-color: #ddd6fe;
+}
+
+.messageRole {
+  margin: 0 0 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vq-secondary);
+}
+
+.messageContent {
+  margin: 0;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.processing {
+  margin: 0.85rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--vq-primary);
+}
+
+.errorBlock {
+  margin-top: 0.85rem;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--vq-critical);
+}
+
+.retryButton {
+  margin-top: 0.5rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid var(--vq-border);
+  background: var(--vq-surface);
+  color: var(--vq-text);
+  cursor: pointer;
 }
 
 .composer {
@@ -61,9 +131,14 @@
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--vq-border);
   border-radius: var(--vq-radius);
+  background: var(--vq-surface);
+  color: var(--vq-text);
+  resize: vertical;
+}
+
+.composerInput:disabled {
   background: #f3f4f6;
   color: var(--vq-secondary);
-  resize: vertical;
 }
 
 .composerHint {
@@ -84,13 +159,13 @@
   padding: 0.4rem 0.8rem;
   border-radius: var(--vq-radius);
   border: 1px solid var(--vq-border);
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .uploadButton {
   background: var(--vq-surface);
   color: var(--vq-text);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .sendButton {
@@ -98,4 +173,15 @@
   color: #fff;
   background: var(--vq-primary);
   border-color: var(--vq-primary);
+  cursor: pointer;
+}
+
+.sendButton:hover:not(:disabled) {
+  background: var(--vq-primary-hover);
+  border-color: var(--vq-primary-hover);
+}
+
+.sendButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }

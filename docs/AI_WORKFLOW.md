@@ -11,60 +11,74 @@ Goals:
 - critical patch semantics for corrections
 - no unnecessary autonomous multi-agent systems
 
-Groq is the LLM provider. Model identifiers come from environment configuration.
+Groq is the LLM provider. Model identifiers come from environment configuration (`GROQ_MODEL`, default `openai/gpt-oss-20b`). The original assessment references `gemma2-9b-it` and mentions `llama-3.3-70b-versatile`; those IDs are no longer generally available on the current Groq developer tier. VeyraQ keeps Groq as the required provider and keeps the model configurable. The default is a currently supported Groq model with strict structured-output support.
 
 ---
 
-## 2. Graph state (conceptual)
+## 2. Graph state (implemented)
 
-The graph state is a single typed object (exact fields finalized in implementation) carrying at least:
+`ComplaintGraphState` (TypedDict) in `backend/app/agents/state.py`:
 
-| Area | Contents |
+| Field | Role |
 | --- | --- |
-| Input | raw_text, optional document metadata, user_message |
-| Intent | `new_complaint` \| `correction` \| `follow_up` \| `unknown` (final enum set may refine) |
-| Complaint draft | core fields + per-field provenance |
-| Patch | set of field updates for correction path |
-| Validation | field-level validation issues |
-| Completeness | missing required/desired fields, readiness flag/signals |
-| Assessment | suggested_severity, suggested_next_action, initial_risk_assessment |
-| Summary | short complaint summary (Tier 3 / summarize node) |
-| Optional intelligence | duplicates, root_cause_hypotheses, capa_suggestions |
-| Control | errors, model/config references, flags for reassessment |
+| `user_message` | Current Assistant text |
+| `current_fields` | Snapshot of the Redux complaint draft |
+| `intent` | `new_complaint` or `correction` |
+| `blocked` | True when a populated draft would be overwritten by a new complaint |
+| `source_extraction` | Last structured LLM payload used by a node |
+| `source_patch` / `correction_patch` / `assessment_patch` | Partial `ComplaintPatch` dicts |
+| `merged_fields` | Draft after applying patches |
+| `missing_required_fields` | Deterministic completeness result |
+| `target_status` | `needs_information` or `ready_to_commit` |
+| `assistant_message` | Deterministic UI message (no extra phrasing LLM call) |
+| `warnings` | Internal grounding/debug notes (not shown in the UI) |
+| `should_assess_risk` / `assessment_ran` | Risk-gate flags |
+| `request_id` | Logging correlation (no complaint text logged) |
 
-**Rule:** Failed node outputs must set error information without applying corrupt field mutations to the durable draft snapshot used for response.
+**Rule:** Failed Groq/schema errors abort the request. The API returns 503 and the client does not apply a patch.
+
+Phase 5 intents are exactly `new_complaint` and `correction`. Follow-up Q&A, documents, duplicates, RCA, and CAPA are not in this graph yet.
 
 ---
 
 ## 3. Nodes and purposes
 
+Factory: `build_complaint_graph(ai_service)` in `backend/app/agents/graph.py`.
+
 ### 3.1 Shared
 
 | Node | Purpose |
 | --- | --- |
-| `detect_intent` | Classify user/document request: new complaint vs correction vs follow-up |
+| `determine_intent` | Empty draft → `new_complaint` with **no** LLM call. Otherwise Groq classifies `new_complaint` vs `correction`. |
 
 ### 3.2 New complaint path
 
 | Node | Purpose |
 | --- | --- |
-| `extract_complaint` | Extract structured fields from raw text with provenance candidates |
-| `normalize_fields` | Normalize formats (dates, quantity strings, batch tokens) without inventing values |
-| `validate_fields` | Schema/business validation of present values |
-| `check_completeness` | Determine missing info and readiness signals |
-| `assess_risk` | Advisory severity, next action, risk assessment |
-| `summarize` | Concise summary for Copilot/review |
+| `extract_source_facts` | Groq source extraction (`value` + `evidence` only; no provenance) |
+| `verify_and_build_source_patch` | Deterministic evidence grounding; `complaint_description` = trimmed original text (`source`) |
+| `merge_patch` | Apply only keys present in the patch |
+| `should_assess_risk` | Requires `product_name` and `complaint_description` |
+| `assess_risk` | Advisory inferred category / severity / priority / action / risk narrative |
+| `merge_assessment` | Assessment fields enter as `provenance = inferred` |
+| `check_completeness` | Deterministic required-field check |
+| `prepare_response` | Deterministic Assistant message |
 
 ### 3.3 Correction path
 
 | Node | Purpose |
 | --- | --- |
-| `extract_patch` | Extract **only** explicitly corrected fields from user message |
-| `validate_patch` | Validate patch fields only |
-| `apply_patch` | Merge patch into existing draft; leave all other fields unchanged |
-| `reassess_affected_outputs_if_required` | Optionally refresh risk/summary/completeness when inputs that affect them changed |
+| `extract_correction_patch` | Groq returns only explicit field changes |
+| `validate_correction` | Known keys only; non-null values must appear in the user message; clears use `missing` |
+| `merge_patch` | Same partial merge as intake |
+| `should_assess_risk` | Re-run risk only for a centralized risk-relevant field set |
+| then `assess_risk` / `merge_assessment` / `check_completeness` / `prepare_response` | Same as intake |
 
-### 3.4 Document path
+Risk-relevant correction fields: `product_name`, `product_strength_grade`, `batch_lot_number`, `affected_quantity`, `complaint_category`, `complaint_description`, `originating_site_block`, `impacted_non_product_materials`. Changing `customer_name` does not refresh risk.
+
+If a populated draft is classified as a new complaint, routing skips extraction and returns a safe message. The draft is not replaced.
+
+### 3.4 Document path (not in Phase 5)
 
 | Node | Purpose |
 | --- | --- |
@@ -84,60 +98,77 @@ These integrate into the same graph/UI context—not separate products.
 
 ---
 
-## 4. Transitions (conceptual)
+## 4. Transitions (implemented)
 
 ### New complaint (text)
 
 ```
-detect_intent
-  → (new_complaint) extract_complaint
-  → normalize_fields
-  → validate_fields
-  → check_completeness
-  → assess_risk
-  → summarize
-  → END
+START
+  → determine_intent
+  → extract_source_facts
+  → verify_and_build_source_patch
+  → merge_patch
+  → should_assess_risk
+       /          \
+     yes          no
+      ↓            │
+  assess_risk      │
+      ↓            │
+ merge_assessment  │
+      └──────┬─────┘
+             ↓
+   check_completeness
+             ↓
+    prepare_response
+             ↓
+            END
 ```
-
-Optional later: insert `detect_duplicates` after normalize/validate or after completeness; insert root cause/CAPA after risk if enabled.
 
 ### Correction
 
 ```
-detect_intent
-  → (correction) extract_patch
-  → validate_patch
-  → apply_patch
-  → reassess_affected_outputs_if_required
-  → END
+START
+  → determine_intent
+  → extract_correction_patch
+  → validate_correction
+  → merge_patch
+  → should_assess_risk
+       /          \
+     yes          no
+      ↓            │
+  assess_risk      │
+      ↓            │
+ merge_assessment  │
+      └──────┬─────┘
+             ↓
+   check_completeness
+             ↓
+    prepare_response
+             ↓
+            END
 ```
 
-`reassess_affected_outputs_if_required` may call completeness and/or risk (and summary) sub-logic when patched fields can change those outputs. It must **not** re-extract unrelated complaint facts.
+Populated draft + `new_complaint` intent:
+
+```
+determine_intent → check_completeness → prepare_response → END
+```
+
+(no extraction, empty patch)
 
 ### Document
 
-**Locked path** (input type already known — do **not** run `detect_intent`):
+Not implemented in Phase 5. Locked future path (input type already known — do **not** run intent detection):
 
 ```
 extract_document_text
-  → (on success) extract_complaint
-  → normalize_fields
-  → validate_fields
-  → check_completeness
-  → assess_risk
-  → summarize
-  → END
+  → (on success) extract_source_facts onward
   → (on failure) END with error
 ```
 
-Document upload uses deterministic text extraction, then enters the complaint extraction graph at `extract_complaint`.
-
 ### Follow-up
 
-If intent is follow-up Q&A:
-- answer from current draft + known gaps
-- do not invent missing source facts
-- do not silently patch fields unless user clearly requests a correction (prefer routing to correction intent when appropriate)
+Not implemented in Phase 5. If added later, answers must not invent missing source facts and must not silently patch fields unless the user clearly requests a correction.
 
 ---
 
@@ -145,11 +176,12 @@ If intent is follow-up Q&A:
 
 1. Every LLM-facing extraction/assessment node defines a **Pydantic-compatible schema**.
 2. Responses are parsed and validated before merging into graph state.
-3. Invalid responses → node error path; no partial corrupt merge into complaint fields.
-4. Extraction schema must support explicit null/missing per field.
-5. Extraction should return provenance per field, or enough evidence tags for the backend to assign SOURCE vs INFERRED vs MISSING.
+3. Invalid responses → 503; no partial corrupt merge into complaint fields.
+4. Extraction schema must support explicit null/missing per field (`value` + `evidence`, both required keys).
+5. The extraction model does **not** decide provenance. Backend grounding assigns `source` or drops the field.
 6. Patch schema must be a **partial** object: only keys present are candidates for update.
-7. Prompts instruct the model not to invent values; backend enforces via validation and null policy.
+7. Prompts instruct the model not to invent values; backend enforces via grounding, validation, and null policy.
+8. Completeness is deterministic from required fields. The LLM is not asked whether the complaint is complete.
 
 ---
 
@@ -157,14 +189,16 @@ If intent is follow-up Q&A:
 
 | Situation | Provenance |
 | --- | --- |
-| Value explicitly present in source text/document | `source` |
+| Extracted value whose evidence span is contained in the complaint text | `source` |
 | Value provided/corrected by user message or form edit | `user` |
-| Value suggested by model without explicit source span/support | `inferred` |
-| Value unknown / unreliable | `missing` (null + “Not provided” in UI) |
+| Advisory assessment (category, severity, priority, next action, risk narrative) | `inferred` |
+| Value unknown / unreliable / explicitly cleared | `missing` (null + “Not provided” in UI) |
 
-Prefer missing over inferred when confidence is weak. Inferred values must remain distinguishable downstream.
+**Grounding:** the extraction model returns `value` + `evidence` only. The backend decides `source`. Evidence must be non-blank and contained in the original text after whitespace normalization (case-insensitive). Ungrounded values are dropped from the patch; they are never stored as `source`.
 
-**Correction note:** Values introduced by correction messages are `user` (user-provided corrections), not source—unless the product later adds an explicit “confirm source” action (not required now).
+Prefer missing over inferred when a source fact is unsupported. Inferred values must remain distinguishable downstream.
+
+**Correction note:** Conversational corrections are `user`, not source extraction. Confidence and evidence are null. Explicit clears use `value = null` and `provenance = missing`.
 
 ---
 
@@ -221,19 +255,19 @@ Expected: only `batch_lot_number` and `affected_quantity` change.
 
 ## 9. Prompt management
 
-- Store prompts in a **central** module/directory (e.g., `backend/app/ai/prompts/`).
+- Store prompts in `backend/app/agents/prompts.py`.
 - Do not bury prompt strings inside unrelated routers.
-- Versioning can be simple filenames/constants; no premature prompt CMS.
-- Include explicit instructions for provenance and anti-hallucination in extraction/patch prompts.
+- Include explicit instructions for anti-hallucination, complaint-text-as-data, and correction patch limits.
 
 ---
 
 ## 10. Model configuration
 
-- `GROQ_API_KEY` from environment (never committed).
-- Model identifier(s) from environment (e.g., `GROQ_MODEL`).
-- If a model is unavailable/deprecated, change config—not scattered literals.
-- Code may map logical roles (`extraction_model`, `assessment_model`) to env vars if needed, still centralized.
+- `GROQ_API_KEY` from environment (never committed). FastAPI still boots when it is empty.
+- `GROQ_MODEL` from environment (default `openai/gpt-oss-20b`).
+- `GROQ_STRUCTURED_OUTPUT_STRICT` defaults to true for strict JSON-schema mode.
+- If the configured model is unavailable, the assistant endpoint fails with a safe 503. There is no multi-model fallback.
+- Code must not hard-code obsolete assessment model IDs into inference.
 
 ---
 

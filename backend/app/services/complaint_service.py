@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.db.models.complaint import Complaint
 from app.domain.complaint import (
-    REQUIRED_COMMIT_FIELDS,
     ComplaintCommitRequest,
     ComplaintFieldKey,
     ComplaintFieldValue,
@@ -15,6 +14,7 @@ from app.domain.complaint import (
     ComplaintStatus,
     CommittedComplaintResponse,
     FieldProvenance,
+    find_missing_required_fields,
 )
 from app.repositories.complaint_repository import HISTORY_LIMIT, ComplaintRepository
 
@@ -38,15 +38,6 @@ def generate_complaint_number() -> str:
 
 def _field_value(fields: ComplaintFields, key: ComplaintFieldKey) -> ComplaintFieldValue:
     return getattr(fields, key.value)
-
-
-def find_missing_required_fields(fields: ComplaintFields) -> list[str]:
-    missing: list[str] = []
-    for key in REQUIRED_COMMIT_FIELDS:
-        value = _field_value(fields, key).value
-        if value is None or not value.strip():
-            missing.append(key.value)
-    return missing
 
 
 def _build_field_metadata(fields: ComplaintFields) -> dict[str, dict[str, object | None]]:

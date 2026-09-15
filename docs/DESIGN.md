@@ -168,7 +168,7 @@ Primary target: **desktop dual-pane** (assessment demo environment).
   - Empty complaint (all field values `null`): Assistant initially selected.
   - Non-empty complaint: Complaint initially selected.
   - Manual tab switching always available.
-- Assistant composer is present but **disabled** until the AI workflow is connected (no fake extraction).
+- Assistant composer is enabled for text complaints and corrections (Phase 5). Upload remains disabled until the document phase.
 
 Do not build a separate marketing landing layout.
 
@@ -181,6 +181,7 @@ Do not build a separate marketing landing layout.
 - Provenance labels: Extracted / User edited / AI suggestion · Verify / Not provided (metadata beside fields; never written into input values).
 - Date fields are text inputs to preserve partial precision (e.g. “March 2026”).
 - Commit is disabled unless status is `ready_to_commit`; Reset uses a small modal confirmation.
+- Phase 5: Assistant composer is enabled for text/corrections. Upload stays disabled. Conversation messages live in the `assistant` Redux slice, not in complaint fields. While an Assistant request is in flight, complaint status is `processing` and is restored on failure.
 ---
 
 ## 10. Accessibility decisions

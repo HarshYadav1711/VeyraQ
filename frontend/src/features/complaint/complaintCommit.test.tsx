@@ -10,6 +10,7 @@ import {
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import assistantReducer from '../assistant/assistantSlice'
 import complaintReducer, {
   commitComplaint,
   setComplaintStatus,
@@ -55,7 +56,7 @@ function readyState(): ComplaintDraftState {
 
 function createStore(preloaded?: ComplaintDraftState) {
   return configureStore({
-    reducer: { complaint: complaintReducer },
+    reducer: { complaint: complaintReducer, assistant: assistantReducer },
     preloadedState: preloaded ? { complaint: preloaded } : undefined,
   })
 }

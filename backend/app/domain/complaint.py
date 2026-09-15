@@ -52,6 +52,43 @@ REQUIRED_COMMIT_FIELDS: tuple[ComplaintFieldKey, ...] = (
     ComplaintFieldKey.INITIAL_RISK_ASSESSMENT,
 )
 
+ASSISTANT_MESSAGE_MAX_LENGTH = 12000
+
+SOURCE_EXTRACTION_FIELDS: tuple[ComplaintFieldKey, ...] = (
+    ComplaintFieldKey.COMPLAINT_SOURCE,
+    ComplaintFieldKey.CUSTOMER_NAME,
+    ComplaintFieldKey.PRODUCT_NAME,
+    ComplaintFieldKey.PRODUCT_STRENGTH_GRADE,
+    ComplaintFieldKey.BATCH_LOT_NUMBER,
+    ComplaintFieldKey.AFFECTED_QUANTITY,
+    ComplaintFieldKey.MANUFACTURING_DATE,
+    ComplaintFieldKey.EXPIRY_DATE,
+    ComplaintFieldKey.COMPLAINT_DATE,
+    ComplaintFieldKey.ORIGINATING_SITE_BLOCK,
+    ComplaintFieldKey.IMPACTED_NON_PRODUCT_MATERIALS,
+)
+
+ASSESSMENT_FIELDS: tuple[ComplaintFieldKey, ...] = (
+    ComplaintFieldKey.COMPLAINT_CATEGORY,
+    ComplaintFieldKey.INITIAL_SEVERITY,
+    ComplaintFieldKey.PRIORITY,
+    ComplaintFieldKey.SUGGESTED_NEXT_ACTION,
+    ComplaintFieldKey.INITIAL_RISK_ASSESSMENT,
+)
+
+RISK_RELEVANT_FIELDS: frozenset[ComplaintFieldKey] = frozenset(
+    {
+        ComplaintFieldKey.PRODUCT_NAME,
+        ComplaintFieldKey.PRODUCT_STRENGTH_GRADE,
+        ComplaintFieldKey.BATCH_LOT_NUMBER,
+        ComplaintFieldKey.AFFECTED_QUANTITY,
+        ComplaintFieldKey.COMPLAINT_CATEGORY,
+        ComplaintFieldKey.COMPLAINT_DESCRIPTION,
+        ComplaintFieldKey.ORIGINATING_SITE_BLOCK,
+        ComplaintFieldKey.IMPACTED_NON_PRODUCT_MATERIALS,
+    }
+)
+
 
 class FieldMetadataEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -128,6 +165,27 @@ class ComplaintFields(BaseModel):
     initial_risk_assessment: ComplaintFieldValue = Field(
         default_factory=ComplaintFieldValue
     )
+
+
+def field_value_is_blank(value: str | None) -> bool:
+    return value is None or value.strip() == ""
+
+
+def find_missing_required_fields(fields: ComplaintFields) -> list[str]:
+    missing: list[str] = []
+    for key in REQUIRED_COMMIT_FIELDS:
+        value = getattr(fields, key.value).value
+        if field_value_is_blank(value):
+            missing.append(key.value)
+    return missing
+
+
+def is_complaint_fields_empty(fields: ComplaintFields) -> bool:
+    for key in ComplaintFieldKey:
+        value = getattr(fields, key.value).value
+        if not field_value_is_blank(value):
+            return False
+    return True
 
 
 class ComplaintPatch(BaseModel):

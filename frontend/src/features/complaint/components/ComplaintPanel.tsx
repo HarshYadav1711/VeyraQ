@@ -30,6 +30,7 @@ export function ComplaintPanel() {
   const titleId = useId()
   const isCommitted = status === 'committed'
   const isSubmitting = commitStatus === 'submitting'
+  const isProcessing = status === 'processing'
   const canCommit = status === 'ready_to_commit' && !isSubmitting
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export function ComplaintPanel() {
             section={section}
             fields={fields}
             recentlyUpdatedFields={recentlyUpdatedFields}
-            readOnly={isCommitted}
+            readOnly={isCommitted || isProcessing}
             onFieldChange={handleFieldChange}
           />
         ))}

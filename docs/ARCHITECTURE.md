@@ -78,16 +78,25 @@ Principles:
 
 ### 4.1 Text intake
 
-1. User submits complaint text in Copilot.
-2. Frontend dispatches Redux action (e.g., processing started) and calls FastAPI.
-3. FastAPI validates request and invokes LangGraph with intent = new complaint.
-4. Graph: `detect_intent` → `extract_complaint` → `normalize_fields` → `validate_fields` → `check_completeness` → `assess_risk` → `summarize`.
-5. Nodes calling Groq return schema-validated structured data.
-6. API returns structured complaint + provenance + advisory risk + status signals.
-7. Redux updates complaint state; form populates.
-8. User reviews; may correct or commit later.
+1. User submits complaint text in the Assistant composer.
+2. Frontend adds the user message to Assistant state, sets complaint status to `processing` (prior status is remembered for failure restore), and `POST /api/v1/assistant/process` with the message plus current `ComplaintFields`.
+3. FastAPI validates the request (blank/oversized text → 422) and invokes the LangGraph complaint graph. Client status is not trusted.
+4. Graph: `determine_intent` → extract / ground / merge → optional `assess_risk` → `check_completeness` → `prepare_response`.
+5. Groq calls happen only through `GroqService` (structured JSON-schema outputs, Pydantic-validated).
+6. API returns `{ intent, patch, status, missing_required_fields, assistant_message }`.
+7. On success, Redux `applyFieldPatch` merges only `patch.changes` and sets the server status. On failure, fields and prior status are unchanged.
 
-### 4.2 Document intake
+### 4.2 Correction (patch)
+
+1. User sends a natural-language correction against a non-empty draft.
+2. Frontend posts the same `/assistant/process` endpoint with the current field snapshot.
+3. Graph: `determine_intent` → `extract_correction_patch` → `validate_correction` → `merge_patch` → risk reassessment only if a risk-relevant field changed → completeness → response.
+4. Response contains **only** patched field updates (plus refreshed assessment fields when required).
+5. Redux merges the patch; unrelated fields remain untouched; UI highlights changed fields.
+
+If the draft is already populated and intent is a different new complaint, the graph does **not** overwrite the draft.
+
+### 4.3 Document intake
 
 1. User uploads document via Copilot.
 2. Frontend sends file to FastAPI upload endpoint.
@@ -95,13 +104,7 @@ Principles:
 4. Extracted text enters the standard complaint workflow (same as §4.1 from intent/extraction onward).
 5. Response populates Redux/form.
 
-### 4.3 Correction (patch)
-
-1. User sends correction text referencing the current draft.
-2. Frontend sends correction + current field snapshot (or server-side draft id if persisted) to API.
-3. Graph: `detect_intent` → `extract_patch` → `validate_patch` → `apply_patch` → `reassess_affected_outputs_if_required`.
-4. Response contains **only** patched field updates (plus any required reassessment outputs).
-5. Redux merges patch; unrelated fields remain untouched; UI highlights changed fields.
+Document intake is not implemented in Phase 5.
 
 ### 4.4 Commit
 
@@ -121,19 +124,24 @@ If Groq/LangGraph fails or returns invalid schema:
 
 ## 5. API surface (conceptual)
 
-Exact routes will be defined during implementation; conceptual groups:
+Implemented under **`/api/v1`**:
 
 | Group | Purpose |
 | --- | --- |
-| `POST /complaints/intake` | Text complaint processing |
-| `POST /complaints/upload` | Document upload + processing |
-| `POST /complaints/correct` | Conversational patch |
-| `POST /complaints/{id}/commit` | Explicit human commit |
-| `GET /complaints/{id}` | Retrieve persisted complaint (as needed) |
-| `GET /health` | Liveness (`GET /api/v1/health`) |
-| `GET /readiness` | Readiness including DB (`GET /api/v1/readiness`) |
+| `POST /assistant/process` | Text complaint extraction and conversational correction |
+| `POST /complaints/commit` | Explicit human commit |
+| `GET /complaints` | List committed complaints |
+| `GET /complaints/{id}` | Retrieve a committed complaint |
+| `GET /health` | Liveness |
+| `GET /readiness` | Readiness including DB |
 
-All versioned routes mount under the single prefix **`/api/v1`**.
+Deferred:
+
+| Group | Purpose |
+| --- | --- |
+| `POST /complaints/upload` | Document upload + processing (later phase) |
+
+Assistant request text is limited to **12,000 characters**. Blank messages return 422. AI provider failures return 503 without mutating the client draft.
 
 Request/response contracts use Pydantic models shared conceptually with frontend types.
 
@@ -144,7 +152,7 @@ Request/response contracts use Pydantic models shared conceptually with frontend
 | State | Owner |
 | --- | --- |
 | Active draft being edited in UI | Redux (client) until explicit commit |
-| Processing / highlight / Copilot chat UX | Redux or local UI state |
+| Processing / highlight / Copilot chat UX | Redux `assistant` slice (messages, requestStatus, error) plus complaint `recentlyUpdatedFields` |
 | AI workflow ephemeral state | LangGraph state object (server, per request) |
 | **Committed** complaint records | PostgreSQL only |
 
@@ -178,19 +186,26 @@ Redux draft → POST /api/v1/complaints/commit → service validation
 ## 7. AI integration boundary
 
 ```
-FastAPI handler
-  → build initial LangGraph state
-  → invoke StateGraph
-  → nodes may call Groq with central prompts
-  → validate structured outputs with Pydantic schemas
-  → return DTO to client
+FastAPI POST /api/v1/assistant/process
+  → GroqService (only Groq SDK boundary)
+  → build_complaint_graph(ai_service)
+  → StateGraph.invoke(initial state)
+  → nodes call ai_service.structured_completion(...)
+  → deterministic evidence grounding + patch merge
+  → completeness → status
+  → ComplaintPatch DTO
+  → Redux applyFieldPatch + setComplaintStatus
 ```
 
 Rules:
 - One understandable stateful workflow (not a swarm of agents).
-- Model name/ID from environment variables.
-- Secrets from environment only.
-- Prompts centralized.
+- All Groq client construction and `chat.completions.create` calls live in `app/services/groq_service.py`.
+- LangGraph nodes receive an `AIService` protocol; tests inject a fake service.
+- Model name/ID from `GROQ_MODEL` (default `openai/gpt-oss-20b`).
+- Secrets from `GROQ_API_KEY` only.
+- Prompts centralized in `app/agents/prompts.py`.
+- Structured outputs use JSON Schema with strict mode enabled for the default model.
+- The original assessment names `gemma2-9b-it` and mentions `llama-3.3-70b-versatile`. Those IDs are no longer generally available on current Groq developer access. VeyraQ keeps Groq as the required provider; the model remains configurable.
 
 Details: `AI_WORKFLOW.md`.
 
@@ -245,8 +260,10 @@ Alembic manages migrations. SQLAlchemy 2.x is the ORM.
 | Duplicate detection source | Committed PostgreSQL history + small fictional seed data; **no** vector database |
 | Database access style | Synchronous SQLAlchemy 2.0 (no async DB stack unless a later requirement justifies it) |
 | Runtimes | Node.js 22 LTS (frontend); Python 3.12 (backend) |
+| Groq model | Environment `GROQ_MODEL`; default `openai/gpt-oss-20b` (strict structured output) |
+| Assistant input limit | 12,000 characters |
 
 ## 12. Still open (deferred)
 
 1. Transport for file upload (multipart) details and max size limits.
-2. Exact Groq model ID string (env-configured when AI phase begins).
+2. Document text extraction path (Phase 7).

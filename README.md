@@ -8,7 +8,7 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 
 ## Status
 
-Phase 4 complete: committed complaint persistence + commit API (no AI yet).
+Phase 5 complete: LangGraph + Groq text complaint intelligence (extraction, grounding, correction patches, advisory risk, completeness). Document upload is not in this phase.
 
 ## Stack
 
@@ -17,7 +17,9 @@ Phase 4 complete: committed complaint persistence + commit API (no AI yet).
 | Frontend | React, TypeScript, Vite, Redux Toolkit, CSS Modules, Inter |
 | Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy 2.0, Alembic |
 | Database | PostgreSQL |
-| AI (later) | LangGraph StateGraph, Groq |
+| AI | LangGraph StateGraph, Groq (official Python SDK) |
+
+The original assessment references Groq model IDs that are no longer generally available on the current developer tier. VeyraQ preserves Groq as the required provider while keeping the model configurable. The default model is a currently supported Groq model with strict structured-output support.
 
 ## Prerequisites
 
@@ -68,6 +70,16 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
+Set `GROQ_API_KEY` in `backend/.env`. Leave it empty to boot the API and health checks; Assistant processing then returns 503 without changing the draft.
+
+Optional:
+
+```text
+GROQ_MODEL=openai/gpt-oss-20b
+```
+
+Assistant messages are limited to 12,000 characters.
+
 Start the API:
 
 ```bash
@@ -102,8 +114,27 @@ Complaint API (after migrations):
 - `POST /api/v1/complaints/commit`
 - `GET /api/v1/complaints`
 - `GET /api/v1/complaints/{id}`
+- `POST /api/v1/assistant/process`
 
 Committed records are not updated or deleted through this assessment API.
+
+### Text complaint demo
+
+Paste into VeyraQ Assistant:
+
+```text
+NovaCare Pharmacy reported brown discoloration on Cefixime
+Capsules 200 mg from batch CFX260481. Manufacturing date April
+2026 and expiry March 2028. 24 capsules were affected.
+```
+
+Then correct:
+
+```text
+Correction: the batch is CFX260418 and 30 capsules were affected.
+```
+
+Only explicitly corrected fields should change (plus a refreshed advisory risk assessment when the change is risk-relevant). Commit remains a separate human action.
 
 ### Backend tests
 

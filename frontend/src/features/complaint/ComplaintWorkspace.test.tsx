@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import assistantReducer from '../assistant/assistantSlice'
 import { isComplaintEmpty } from './complaintDisplay'
 import complaintReducer, {
   applyFieldPatch,
@@ -18,7 +19,7 @@ import styles from './components/ComplaintField.module.css'
 
 function createStore(preloaded?: ComplaintDraftState) {
   return configureStore({
-    reducer: { complaint: complaintReducer },
+    reducer: { complaint: complaintReducer, assistant: assistantReducer },
     preloadedState: preloaded ? { complaint: preloaded } : undefined,
   })
 }

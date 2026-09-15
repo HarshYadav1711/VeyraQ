@@ -94,20 +94,20 @@ Assessment fields are never final dispositions.
 
 | Provenance | Meaning |
 | --- | --- |
-| `source` | Explicitly present in customer text/document and extracted from that source |
+| `source` | Explicitly present in customer text/document **and** backed by grounded evidence contained in that text |
 | `user` | Directly entered, edited, or corrected by the human |
 | `inferred` | AI suggested; not explicitly stated by the source |
 | `missing` | No reliable value (`value = null`) |
 
 Rules:
 - Empty initial fields use `provenance = missing` and `value = null`.
-- User edits use `provenance = user`; do not invent `confidence` / `evidence` for user-entered fields (leave null).
-- AI extraction uses `source` when explicit evidence exists; otherwise prefer `missing` over guessing.
+- User edits and conversational corrections use `provenance = user`; do not invent `confidence` / `evidence` for user-entered fields (leave null).
+- AI extraction uses `source` only when a non-blank evidence span is contained in the original complaint text (whitespace-normalized, case-insensitive). Otherwise the field is dropped, not stored as `source`.
 - AI suggestions without explicit source support use `inferred`.
-- `confidence` is optional (`null` unless produced by extraction logic); range 0.0–1.0 when set.
+- `confidence` is optional (`null` unless produced by extraction logic); range 0.0–1.0 when set. Phase 5 source extraction leaves confidence null.
 - `evidence` is optional (`null` unless supported by source text).
 
-**Hallucination rule:** Never invent facts as `source`. Prefer `missing`.
+**Hallucination rule:** Never invent facts as `source`. Prefer `missing`. The model is not asked whether a value is source or inferred.
 
 ---
 
@@ -191,6 +191,7 @@ If API vs FDF cannot be determined, do not invent a classification as source fac
 
 - Risk output is **advisory** for QA.
 - Suggested severity, priority, and next action do not auto-commit or auto-notify.
+- VeyraQ prototype values: `initial_severity` ∈ {Critical, Major, Minor}; `priority` ∈ {High, Medium, Low}. This taxonomy is **not** claimed as a universal FDA, ICH, or QMS mandate.
 - Reassessment after patch may occur when patched fields could change risk, without rewriting unrelated complaint facts.
 
 ---

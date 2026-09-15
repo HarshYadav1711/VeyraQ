@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173"]
     )
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_STRUCTURED_OUTPUT_STRICT: bool = True
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

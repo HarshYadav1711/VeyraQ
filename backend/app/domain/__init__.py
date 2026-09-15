@@ -1,5 +1,9 @@
 from app.domain.complaint import (
+    ASSESSMENT_FIELDS,
+    ASSISTANT_MESSAGE_MAX_LENGTH,
     REQUIRED_COMMIT_FIELDS,
+    RISK_RELEVANT_FIELDS,
+    SOURCE_EXTRACTION_FIELDS,
     CommitValidationError,
     ComplaintCommitRequest,
     ComplaintDraft,
@@ -12,10 +16,17 @@ from app.domain.complaint import (
     CommittedComplaintResponse,
     FieldMetadataEntry,
     FieldProvenance,
+    field_value_is_blank,
+    find_missing_required_fields,
+    is_complaint_fields_empty,
 )
 
 __all__ = [
+    "ASSESSMENT_FIELDS",
+    "ASSISTANT_MESSAGE_MAX_LENGTH",
     "REQUIRED_COMMIT_FIELDS",
+    "RISK_RELEVANT_FIELDS",
+    "SOURCE_EXTRACTION_FIELDS",
     "CommitValidationError",
     "ComplaintCommitRequest",
     "ComplaintDraft",
@@ -28,4 +39,7 @@ __all__ = [
     "CommittedComplaintResponse",
     "FieldMetadataEntry",
     "FieldProvenance",
+    "field_value_is_blank",
+    "find_missing_required_fields",
+    "is_complaint_fields_empty",
 ]
