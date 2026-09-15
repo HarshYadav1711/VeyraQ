@@ -140,7 +140,13 @@ Wire / code values (snake_case):
 
 Initial draft status: **`pending_triage`**.
 
-UI may display human-readable labels (e.g. “Pending Triage”). Status transitions are product rules for this assessment tool, not claims of regulated workflow validation.
+### Committed records (locked)
+
+- A **draft** is editable and client-side until commit.
+- A **committed** complaint is persisted in PostgreSQL with a server-generated UUID and readable `complaint_number` (assessment format `CMP-{UTC year}-{suffix}`).
+- This numbering is **not** a validated pharmaceutical production sequence; a real QMS would replace it with an organization-controlled generator.
+- The current assessment API treats committed records as **immutable** (no update/delete endpoints). Regulated amendment/audit would require a separate design.
+- Successful commit always yields product status `committed`; draft workflow statuses are not persisted as the authoritative committed state.
 
 ---
 

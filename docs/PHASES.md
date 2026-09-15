@@ -111,7 +111,33 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 4 — LangGraph workflow (text intake)
+## Phase 4 — Committed complaint persistence and API
+
+**Goal:** Persist human-reviewed complaints to PostgreSQL via an explicit commit API—no AI.
+
+**Includes:**
+- SQLAlchemy `Complaint` model + Alembic migration
+- Values in columns + provenance in `field_metadata` JSON
+- `POST /api/v1/complaints/commit`, `GET /complaints`, `GET /complaints/{id}`
+- Server-side required-field validation and complaint-number generation
+- Frontend commit flow (fetch + Redux commit metadata + locked committed UI)
+- Idempotent fictional demo seed script (`CMP-DEMO-*`)
+
+**Excludes:**
+- LangGraph, Groq, document parsing, duplicate scoring, AI risk/CAPA
+- PUT/PATCH/DELETE for committed records
+
+**Exit criteria:**
+- Valid commit returns 201 with id/number/fields/timestamps
+- Missing required fields return 422
+- Frontend commit success locks fields and shows complaint number
+- Pytest (SQLite test DB) + frontend tests pass; Alembic offline SQL renders
+
+**Status:** Complete.
+
+---
+
+## Phase 5 — LangGraph workflow (text intake)
 
 **Goal:** Implement one StateGraph for new complaint text intake through summarize/risk.
 
@@ -122,6 +148,7 @@ Do not start a later phase by breaking earlier demos.
 - Pydantic validation of structured outputs
 - FastAPI intake endpoint
 - Frontend wiring: Copilot submit → API → Redux populate
+- Transition drafts to `ready_to_commit` / `needs_information` via completeness
 
 **Exit criteria:**
 - Pasting a sample complaint populates the form
@@ -131,14 +158,13 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 5 — Conversational patch corrections
+## Phase 6 — Conversational patch corrections
 
-**Goal:** Critical patch semantics.
+**Goal:** Critical patch semantics via AI correction path (Redux patch merge already exists).
 
 **Includes:**
 - Correction path nodes: `extract_patch`, `validate_patch`, `apply_patch`, `reassess_affected_outputs_if_required`
 - API correct endpoint
-- Redux patch merge
 - Field highlight on updated fields
 
 **Exit criteria:**
@@ -148,7 +174,7 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 6 — Document upload path
+## Phase 7 — Document upload path
 
 **Goal:** PDF (and practical TXT/EML) text extraction into the same workflow.
 
@@ -164,26 +190,9 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 7 — Completeness, readiness, commit, persistence
-
-**Goal:** Status model + PostgreSQL commit path.
-
-**Includes:**
-- Completeness checker integrated (Tier 1)
-- Status transitions: Needs Information / Ready to Commit / etc.
-- Explicit commit endpoint + DB persistence
-- UI commit enablement rules
-
-**Exit criteria:**
-- Incomplete drafts cannot commit
-- Explicit commit stores Committed record
-- Retrieve/demonstrate persistence in demo
-
----
-
 ## Phase 8 — Tier 1 remaining bonus + hardening
 
-**Goal:** Duplicate detection (if feasible) and stronger risk classification integration; reliability polish.
+**Goal:** Duplicate detection against committed history (incl. demo seed) and risk polish.
 
 **Includes:**
 - `detect_duplicates` optional node wired into workflow/UI context
@@ -239,16 +248,16 @@ Do not start a later phase by breaking earlier demos.
   → 1 Skeleton
     → 2 Models/contracts
       → 3 UI shell
-        → 4 Text intake AI
-          → 5 Patch corrections
-            → 6 Documents
-              → 7 Completeness + commit
-                → 8 Tier 1 polish
+        → 4 Commit persistence + API
+          → 5 Text intake AI
+            → 6 Patch corrections
+              → 7 Documents
+                → 8 Tier 1 polish / duplicates
                   → 9 Tier 2/3 optional
                     → 10 E2E + demo
 ```
 
-Phases 5 and 6 could swap if needed, but **patch corrections are critical** and should not be deferred behind bonuses.
+**Patch corrections remain critical** and should not be deferred behind bonuses.
 
 ---
 

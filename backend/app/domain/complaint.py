@@ -1,8 +1,10 @@
-"""Canonical pharmaceutical complaint intake domain contracts."""
+﻿"""Canonical pharmaceutical complaint intake domain contracts."""
 
+from datetime import datetime
 from enum import Enum
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class FieldProvenance(str, Enum):
@@ -40,6 +42,34 @@ class ComplaintFieldKey(str, Enum):
     INITIAL_RISK_ASSESSMENT = "initial_risk_assessment"
 
 
+REQUIRED_COMMIT_FIELDS: tuple[ComplaintFieldKey, ...] = (
+    ComplaintFieldKey.COMPLAINT_SOURCE,
+    ComplaintFieldKey.CUSTOMER_NAME,
+    ComplaintFieldKey.PRODUCT_NAME,
+    ComplaintFieldKey.BATCH_LOT_NUMBER,
+    ComplaintFieldKey.COMPLAINT_CATEGORY,
+    ComplaintFieldKey.COMPLAINT_DESCRIPTION,
+    ComplaintFieldKey.INITIAL_RISK_ASSESSMENT,
+)
+
+
+class FieldMetadataEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provenance: FieldProvenance
+    confidence: float | None = None
+    evidence: str | None = None
+
+    @field_validator("confidence")
+    @classmethod
+    def confidence_in_unit_interval(cls, value: float | None) -> float | None:
+        if value is None:
+            return value
+        if value < 0.0 or value > 1.0:
+            raise ValueError("confidence must be between 0.0 and 1.0 inclusive")
+        return value
+
+
 class ComplaintFieldValue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -56,6 +86,14 @@ class ComplaintFieldValue(BaseModel):
         if value < 0.0 or value > 1.0:
             raise ValueError("confidence must be between 0.0 and 1.0 inclusive")
         return value
+
+    @model_validator(mode="after")
+    def provenance_matches_value(self) -> "ComplaintFieldValue":
+        if self.value is None and self.provenance != FieldProvenance.MISSING:
+            raise ValueError("null values must use missing provenance")
+        if self.value is not None and self.provenance == FieldProvenance.MISSING:
+            raise ValueError("non-null values cannot use missing provenance")
+        return self
 
 
 class ComplaintFields(BaseModel):
@@ -103,3 +141,40 @@ class ComplaintDraft(BaseModel):
 
     fields: ComplaintFields = Field(default_factory=ComplaintFields)
     status: ComplaintStatus = ComplaintStatus.PENDING_TRIAGE
+
+
+class ComplaintCommitRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fields: ComplaintFields
+
+
+class CommittedComplaintResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    complaint_number: str
+    status: ComplaintStatus = ComplaintStatus.COMMITTED
+    fields: ComplaintFields
+    created_at: datetime
+    committed_at: datetime
+
+
+class ComplaintListItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    complaint_number: str
+    status: ComplaintStatus = ComplaintStatus.COMMITTED
+    customer_name: str
+    product_name: str
+    batch_lot_number: str
+    complaint_category: str
+    committed_at: datetime
+
+
+class CommitValidationError(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detail: str
+    missing_fields: list[str]

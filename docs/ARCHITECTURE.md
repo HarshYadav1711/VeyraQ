@@ -154,9 +154,24 @@ Request/response contracts use Pydantic models shared conceptually with frontend
 
 - Frontend and backend share one conceptual complaint contract (mirrored TypeScript + Pydantic).
 - Each canonical field is a `ComplaintFieldValue`: `{ value, provenance, confidence, evidence }` co-located—not a separate provenance map.
-- Uncommitted draft lives in Redux under the `complaint` slice (`fields`, `status`, `recentlyUpdatedFields`).
+- Uncommitted draft lives in Redux under the `complaint` slice (`fields`, `status`, `recentlyUpdatedFields`, plus commit metadata).
 - Updates that change only some fields use an explicit **`ComplaintPatch`** (`changes` map). Never “replace the whole regenerated complaint” as the correction contract.
-- SQL persistence models and Alembic migrations for complaints are deferred until a later phase.
+
+### Persistence boundary (Phase 4)
+
+```text
+Redux draft → POST /api/v1/complaints/commit → service validation
+  → repository → SQLAlchemy Complaint → PostgreSQL
+  → CommittedComplaintResponse → Redux status=committed
+```
+
+- **SQL columns** store authoritative field values (dates remain strings).
+- **`field_metadata` JSON** stores only `{ provenance, confidence, evidence }` per field — not duplicate values.
+- Server generates `id` (UUID) and `complaint_number` (`CMP-{year}-{suffix}`); clients cannot supply them on commit.
+- Commit validation is **server-enforced** (required fields); frontend `ready_to_commit` is not trusted.
+- No `PUT` / `PATCH` / `DELETE` for committed records in this assessment API.
+- Read-only: `GET /api/v1/complaints`, `GET /api/v1/complaints/{id}`.
+- Layers: routes → `ComplaintService` → `ComplaintRepository` → model.
 
 ---
 

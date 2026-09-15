@@ -29,6 +29,8 @@ export type ComplaintStatus =
   | 'ready_to_commit'
   | 'committed'
 
+export type CommitStatus = 'idle' | 'submitting' | 'succeeded' | 'failed'
+
 export interface ComplaintFieldValue {
   value: string | null
   provenance: FieldProvenance
@@ -42,10 +44,27 @@ export interface ComplaintPatch {
   changes: Partial<Record<ComplaintFieldKey, ComplaintFieldValue>>
 }
 
+export interface ComplaintCommitRequest {
+  fields: ComplaintFields
+}
+
+export interface CommittedComplaintResponse {
+  id: string
+  complaint_number: string
+  status: 'committed'
+  fields: ComplaintFields
+  created_at: string
+  committed_at: string
+}
+
 export interface ComplaintDraftState {
   fields: ComplaintFields
   status: ComplaintStatus
   recentlyUpdatedFields: ComplaintFieldKey[]
+  commitStatus: CommitStatus
+  commitError: string | null
+  committedRecordId: string | null
+  complaintNumber: string | null
 }
 
 export function createEmptyComplaintFieldValue(): ComplaintFieldValue {
@@ -70,5 +89,25 @@ export function createInitialComplaintDraftState(): ComplaintDraftState {
     fields: createEmptyComplaintFields(),
     status: 'pending_triage',
     recentlyUpdatedFields: [],
+    commitStatus: 'idle',
+    commitError: null,
+    committedRecordId: null,
+    complaintNumber: null,
   }
+}
+
+export function serializeCommitRequest(
+  fields: ComplaintFields,
+): ComplaintCommitRequest {
+  const serialized = {} as ComplaintFields
+  for (const key of COMPLAINT_FIELD_KEYS) {
+    const field = fields[key]
+    serialized[key] = {
+      value: field.value,
+      provenance: field.provenance,
+      confidence: field.confidence,
+      evidence: field.evidence,
+    }
+  }
+  return { fields: serialized }
 }

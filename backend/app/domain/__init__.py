@@ -1,19 +1,31 @@
 from app.domain.complaint import (
+    REQUIRED_COMMIT_FIELDS,
+    CommitValidationError,
+    ComplaintCommitRequest,
     ComplaintDraft,
     ComplaintFieldKey,
     ComplaintFieldValue,
     ComplaintFields,
+    ComplaintListItem,
     ComplaintPatch,
     ComplaintStatus,
+    CommittedComplaintResponse,
+    FieldMetadataEntry,
     FieldProvenance,
 )
 
 __all__ = [
+    "REQUIRED_COMMIT_FIELDS",
+    "CommitValidationError",
+    "ComplaintCommitRequest",
     "ComplaintDraft",
     "ComplaintFieldKey",
     "ComplaintFieldValue",
     "ComplaintFields",
+    "ComplaintListItem",
     "ComplaintPatch",
     "ComplaintStatus",
+    "CommittedComplaintResponse",
+    "FieldMetadataEntry",
     "FieldProvenance",
 ]

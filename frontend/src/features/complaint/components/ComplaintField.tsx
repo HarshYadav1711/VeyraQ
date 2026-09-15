@@ -9,6 +9,7 @@ interface ComplaintFieldProps {
   config: ComplaintFieldDisplayConfig
   field: ComplaintFieldValue
   recentlyUpdated: boolean
+  readOnly: boolean
   onChange: (value: string | null) => void
 }
 
@@ -16,6 +17,7 @@ export function ComplaintField({
   config,
   field,
   recentlyUpdated,
+  readOnly,
   onChange,
 }: ComplaintFieldProps) {
   const inputId = `complaint-field-${config.key}`
@@ -55,6 +57,8 @@ export function ComplaintField({
           placeholder={config.placeholder}
           rows={4}
           aria-describedby={metaId}
+          readOnly={readOnly}
+          disabled={readOnly}
           onChange={handleChange}
         />
       ) : (
@@ -65,6 +69,8 @@ export function ComplaintField({
           value={displayValue}
           placeholder={config.placeholder}
           aria-describedby={metaId}
+          readOnly={readOnly}
+          disabled={readOnly}
           onChange={handleChange}
         />
       )}

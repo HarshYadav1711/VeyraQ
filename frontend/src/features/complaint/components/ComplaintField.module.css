@@ -40,6 +40,13 @@
   resize: vertical;
 }
 
+.control:disabled,
+.control:read-only {
+  background: #f9fafb;
+  color: var(--vq-text);
+  cursor: default;
+}
+
 .control::placeholder {
   color: #98a2b3;
 }

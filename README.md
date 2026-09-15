@@ -8,7 +8,7 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 
 ## Status
 
-Phase 3 complete: complaint review workspace UI (no AI/API persistence yet).
+Phase 4 complete: committed complaint persistence + commit API (no AI yet).
 
 ## Stack
 
@@ -82,11 +82,28 @@ uvicorn app.main:app --reload --port 8000
 
 Ensure PostgreSQL is running and create a database matching `DATABASE_URL` in `.env` (default database name: `veyraq`).
 
-Alembic is initialized and reads `DATABASE_URL` from application settings. There are no domain migrations in Phase 1.
+PostgreSQL is required for **live** readiness checks and real commit persistence. Automated backend tests use an isolated in-memory SQLite database and do not need PostgreSQL.
+
+Apply migrations:
 
 ```bash
-alembic current
+cd backend
+alembic upgrade head
 ```
+
+Optional fictional history seed (idempotent; for later duplicate demos):
+
+```bash
+python -m app.scripts.seed_demo_complaints
+```
+
+Complaint API (after migrations):
+
+- `POST /api/v1/complaints/commit`
+- `GET /api/v1/complaints`
+- `GET /api/v1/complaints/{id}`
+
+Committed records are not updated or deleted through this assessment API.
 
 ### Backend tests
 
@@ -95,7 +112,7 @@ cd backend
 pytest
 ```
 
-Readiness tests mock the database probe and do not require a live PostgreSQL instance.
+Readiness and complaint API tests do not require a live PostgreSQL instance.
 
 ## Documentation
 

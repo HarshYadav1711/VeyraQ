@@ -120,7 +120,7 @@ Corrections shall update only explicitly corrected fields.
 The system shall evaluate complaint completeness and reflect status accordingly (Tier 1 bonus, integrated in workflow).
 
 ### FR-8 Human commit
-The system shall persist a complaint only after explicit user commit when Ready to Commit conditions are satisfied.
+The system shall persist a complaint only after explicit user commit. The backend independently validates required fields and assigns record identity. Committed records are immutable through the current assessment API (no update/delete). Authentication/RBAC would be required for real deployment and is out of scope for this assessment.
 
 ### FR-9 Dual-pane desktop UI
 Desktop layout shall show complaint form (left) and VeyraQ Copilot (right).

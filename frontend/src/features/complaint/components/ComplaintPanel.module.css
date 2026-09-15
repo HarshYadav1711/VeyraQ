@@ -25,6 +25,16 @@
   color: var(--vq-secondary);
 }
 
+.committedBanner {
+  margin: 0.65rem 0 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--vq-radius);
+  background: var(--vq-success-tint);
+  color: #166534;
+  font-size: 0.8125rem;
+}
+
 .body {
   flex: 1;
   padding: 0.25rem 1.15rem 0.5rem;
@@ -54,6 +64,14 @@
   max-width: 18rem;
   font-size: 0.75rem;
   color: var(--vq-secondary);
+  text-align: right;
+}
+
+.commitError {
+  margin: 0;
+  max-width: 18rem;
+  font-size: 0.75rem;
+  color: var(--vq-critical);
   text-align: right;
 }
 

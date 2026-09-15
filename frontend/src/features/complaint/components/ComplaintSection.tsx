@@ -7,6 +7,7 @@ interface ComplaintSectionProps {
   section: ComplaintSectionConfig
   fields: Record<ComplaintFieldKey, ComplaintFieldValue>
   recentlyUpdatedFields: readonly ComplaintFieldKey[]
+  readOnly: boolean
   onFieldChange: (key: ComplaintFieldKey, value: string | null) => void
 }
 
@@ -14,6 +15,7 @@ export function ComplaintSection({
   section,
   fields,
   recentlyUpdatedFields,
+  readOnly,
   onFieldChange,
 }: ComplaintSectionProps) {
   return (
@@ -28,6 +30,7 @@ export function ComplaintSection({
             config={fieldConfig}
             field={fields[fieldConfig.key]}
             recentlyUpdated={recentlyUpdatedFields.includes(fieldConfig.key)}
+            readOnly={readOnly}
             onChange={(value) => onFieldChange(fieldConfig.key, value)}
           />
         ))}

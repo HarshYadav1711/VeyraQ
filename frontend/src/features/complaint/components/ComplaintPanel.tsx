@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../app/hooks'
 import { COMPLAINT_SECTIONS } from '../complaintDisplay'
 import {
   clearRecentlyUpdatedFields,
+  commitComplaint,
   resetComplaintDraft,
   setUserField,
 } from '../complaintSlice'
@@ -20,10 +21,16 @@ export function ComplaintPanel() {
   const recentlyUpdatedFields = useAppSelector(
     (state) => state.complaint.recentlyUpdatedFields,
   )
+  const commitStatus = useAppSelector((state) => state.complaint.commitStatus)
+  const commitError = useAppSelector((state) => state.complaint.commitError)
+  const complaintNumber = useAppSelector((state) => state.complaint.complaintNumber)
+
   const [confirmOpen, setConfirmOpen] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const canCommit = status === 'ready_to_commit'
+  const isCommitted = status === 'committed'
+  const isSubmitting = commitStatus === 'submitting'
+  const canCommit = status === 'ready_to_commit' && !isSubmitting
 
   useEffect(() => {
     if (recentlyUpdatedFields.length === 0) {
@@ -61,6 +68,13 @@ export function ComplaintPanel() {
     setConfirmOpen(false)
   }
 
+  function handleCommit() {
+    if (!canCommit) {
+      return
+    }
+    void dispatch(commitComplaint())
+  }
+
   return (
     <section className={styles.panel} aria-labelledby={titleId}>
       <header className={styles.header}>
@@ -69,6 +83,11 @@ export function ComplaintPanel() {
             Log Customer Complaint
           </h2>
           <p className={styles.subtitle}>API &amp; FDF Quality Assurance</p>
+          {isCommitted && complaintNumber ? (
+            <p className={styles.committedBanner} role="status">
+              Committed as <strong>{complaintNumber}</strong>
+            </p>
+          ) : null}
         </div>
       </header>
 
@@ -79,6 +98,7 @@ export function ComplaintPanel() {
             section={section}
             fields={fields}
             recentlyUpdatedFields={recentlyUpdatedFields}
+            readOnly={isCommitted}
             onFieldChange={handleFieldChange}
           />
         ))}
@@ -90,25 +110,34 @@ export function ComplaintPanel() {
           className={styles.secondaryButton}
           onClick={() => setConfirmOpen(true)}
         >
-          Reset Complaint
+          {isCommitted ? 'New Complaint' : 'Reset Complaint'}
         </button>
 
         <div className={styles.commitGroup}>
           <button
             type="button"
             className={styles.primaryButton}
-            disabled={!canCommit}
+            disabled={!canCommit || isCommitted}
+            aria-busy={isSubmitting}
             title={
-              canCommit
-                ? 'Commit complaint record'
-                : 'Complaint must be ready for review before it can be committed.'
+              isCommitted
+                ? 'Complaint already committed'
+                : canCommit
+                  ? 'Commit complaint record'
+                  : 'Complaint must be ready for review before it can be committed.'
             }
+            onClick={handleCommit}
           >
-            Commit Complaint
+            {isSubmitting ? 'Committing…' : 'Commit Complaint'}
           </button>
-          {!canCommit ? (
+          {!canCommit && !isCommitted ? (
             <p className={styles.commitHint}>
               Complaint must be ready for review before it can be committed.
+            </p>
+          ) : null}
+          {commitError ? (
+            <p className={styles.commitError} role="alert">
+              {commitError}
             </p>
           ) : null}
         </div>
@@ -125,11 +154,12 @@ export function ComplaintPanel() {
         }}
       >
         <h3 className={styles.dialogTitle} id="reset-dialog-title">
-          Reset complaint draft?
+          {isCommitted ? 'Start a new complaint?' : 'Reset complaint draft?'}
         </h3>
         <p className={styles.dialogBody}>
-          This clears all complaint fields and returns the draft to Pending
-          Triage.
+          {isCommitted
+            ? 'This clears the committed view and starts a new empty draft.'
+            : 'This clears all complaint fields and returns the draft to Pending Triage.'}
         </p>
         <div className={styles.dialogActions}>
           <button
@@ -144,7 +174,7 @@ export function ComplaintPanel() {
             className={styles.dangerButton}
             onClick={handleConfirmReset}
           >
-            Reset Complaint
+            {isCommitted ? 'New Complaint' : 'Reset Complaint'}
           </button>
         </div>
       </dialog>
