@@ -70,6 +70,7 @@ def build_initial_state(
     user_message: str,
     fields: ComplaintFields,
     request_id: str,
+    input_kind: Literal["text", "document"] = "text",
 ) -> ComplaintGraphState:
     dumped = fields_to_dump(fields)
     return {
@@ -77,6 +78,7 @@ def build_initial_state(
         "current_fields": dumped,
         "intent": "",
         "blocked": False,
+        "input_kind": input_kind,
         "source_extraction": {},
         "source_patch": patch_to_dump(empty_patch()),
         "correction_patch": patch_to_dump(empty_patch()),
@@ -358,6 +360,7 @@ def build_complaint_graph(ai_service: AIService):
             assessment_ran=state["assessment_ran"],
             status=status,
             missing_required_fields=state["missing_required_fields"],
+            input_kind=state["input_kind"],
         )
         return {"assistant_message": message}
 

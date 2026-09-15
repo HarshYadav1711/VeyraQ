@@ -17,6 +17,10 @@ export function ComplaintWorkspace() {
     empty ? 'assistant' : 'complaint',
   )
 
+  function handleSuccessfulDocumentExtraction() {
+    setMobilePane('complaint')
+  }
+
   return (
     <div className={styles.workspace}>
       <header className={styles.topBar}>
@@ -87,7 +91,9 @@ export function ComplaintWorkspace() {
               : styles.assistantPane
           }
         >
-          <AssistantPanel />
+          <AssistantPanel
+            onSuccessfulDocumentExtraction={handleSuccessfulDocumentExtraction}
+          />
         </div>
       </div>
     </div>

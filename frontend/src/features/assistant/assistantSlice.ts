@@ -6,7 +6,11 @@ import {
   setComplaintStatus,
 } from '../complaint/complaintSlice'
 import type { ComplaintDraftState } from '../complaint/complaintTypes'
-import { AssistantApiError, postAssistantProcess } from './assistantApi'
+import {
+  AssistantApiError,
+  postAssistantProcess,
+  processComplaintDocument,
+} from './assistantApi'
 import {
   createAssistantMessageId,
   createInitialAssistantState,
@@ -22,6 +26,11 @@ interface RootSliceState {
 interface ProcessAssistantArgs {
   message: string
   retry?: boolean
+}
+
+interface ProcessDocumentArgs {
+  file: File
+  displayName: string
 }
 
 const SAFE_UNAVAILABLE =
@@ -93,6 +102,62 @@ export const processAssistantMessage = createAsyncThunk<
   },
 )
 
+export const processAssistantDocument = createAsyncThunk<
+  void,
+  ProcessDocumentArgs,
+  { state: RootSliceState; rejectValue: string }
+>(
+  'assistant/processDocument',
+  async ({ file, displayName }, { getState, dispatch, rejectWithValue }) => {
+    const { complaint, assistant } = getState()
+    if (complaint.status === 'committed') {
+      return rejectWithValue(
+        'This complaint is already committed. Start a New Complaint to continue.',
+      )
+    }
+
+    dispatch(
+      addUserMessage({
+        id: createAssistantMessageId(),
+        role: 'user',
+        content: `Uploaded complaint document: ${displayName}`,
+      }),
+    )
+
+    const previousStatus =
+      complaint.status === 'processing'
+        ? (assistant.statusBeforeProcessing ?? 'pending_triage')
+        : complaint.status
+    dispatch(rememberStatusBeforeProcessing(previousStatus))
+    dispatch(setComplaintStatus('processing'))
+
+    try {
+      const response = await processComplaintDocument(file, complaint.fields)
+      dispatch(applyFieldPatch(response.patch))
+      dispatch(setComplaintStatus(response.status))
+      dispatch(
+        addAssistantMessage({
+          id: createAssistantMessageId(),
+          role: 'assistant',
+          content: response.assistant_message,
+        }),
+      )
+    } catch (error) {
+      dispatch(setComplaintStatus(previousStatus))
+      if (error instanceof AssistantApiError) {
+        return rejectWithValue(
+          error.status >= 500 ? SAFE_UNAVAILABLE : error.message,
+        )
+      }
+      return rejectWithValue(SAFE_UNAVAILABLE)
+    }
+  },
+  {
+    condition: (_, { getState }) =>
+      getState().assistant.requestStatus !== 'processing',
+  },
+)
+
 const assistantSlice = createSlice({
   name: 'assistant',
   initialState: createInitialAssistantState(),
@@ -131,6 +196,20 @@ const assistantSlice = createSlice({
         state.statusBeforeProcessing = null
       })
       .addCase(processAssistantMessage.rejected, (state, action) => {
+        state.requestStatus = 'failed'
+        state.error = action.payload ?? SAFE_UNAVAILABLE
+        state.statusBeforeProcessing = null
+      })
+      .addCase(processAssistantDocument.pending, (state) => {
+        state.requestStatus = 'processing'
+        state.error = null
+      })
+      .addCase(processAssistantDocument.fulfilled, (state) => {
+        state.requestStatus = 'idle'
+        state.error = null
+        state.statusBeforeProcessing = null
+      })
+      .addCase(processAssistantDocument.rejected, (state, action) => {
         state.requestStatus = 'failed'
         state.error = action.payload ?? SAFE_UNAVAILABLE
         state.statusBeforeProcessing = null

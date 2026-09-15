@@ -149,26 +149,164 @@
 
 .composerActions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.6rem;
 }
 
-.uploadButton,
+.uploadSection {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--vq-border);
+}
+
+.uploadHeading {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--vq-text);
+}
+
+.dropZone {
+  padding: 0.75rem 0.85rem;
+  border: 1px dashed var(--vq-border);
+  border-radius: var(--vq-radius);
+  background: #fbfcfe;
+  text-align: center;
+}
+
+.dropZoneActive {
+  border-color: var(--vq-primary);
+  background: var(--vq-ai-tint);
+}
+
+.dropPrompt {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--vq-text);
+}
+
+.dropOr {
+  margin: 0.35rem 0;
+  font-size: 0.75rem;
+  color: var(--vq-secondary);
+}
+
+.chooseFileButton {
+  min-height: 2rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid var(--vq-border);
+  background: var(--vq-surface);
+  color: var(--vq-text);
+  cursor: pointer;
+}
+
+.chooseFileButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.uploadMeta {
+  margin: 0.55rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--vq-secondary);
+}
+
+.selectedFile {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+  background: var(--vq-surface);
+}
+
+.selectedFileInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.selectedFileName {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--vq-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.selectedFileSize {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--vq-secondary);
+}
+
+.removeFileButton {
+  flex-shrink: 0;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid var(--vq-border);
+  background: var(--vq-surface);
+  color: var(--vq-text);
+  cursor: pointer;
+}
+
+.removeFileButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.fileError {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--vq-critical);
+}
+
+.analyzeButton {
+  display: block;
+  width: 100%;
+  margin-top: 0.65rem;
+  min-height: 2.15rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid var(--vq-primary);
+  background: var(--vq-surface);
+  color: var(--vq-primary);
+  cursor: pointer;
+}
+
+.analyzeButton:hover:not(:disabled) {
+  background: var(--vq-ai-tint);
+}
+
+.analyzeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  border-color: var(--vq-border);
+  color: var(--vq-secondary);
+}
+
 .sendButton {
   min-height: 2.15rem;
   padding: 0.4rem 0.8rem;
   border-radius: var(--vq-radius);
   border: 1px solid var(--vq-border);
-}
-
-.uploadButton {
-  background: var(--vq-surface);
-  color: var(--vq-text);
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.sendButton {
   margin-left: auto;
   color: #fff;
   background: var(--vq-primary);

@@ -25,9 +25,21 @@ def new_complaint_message(
     assessment_ran: bool,
     status: ComplaintStatus,
     missing_required_fields: list[str],
+    input_kind: str = "text",
 ) -> str:
     extracted = bool(source_patch.changes)
+    from_document = input_kind == "document"
+
     if status == ComplaintStatus.READY_TO_COMMIT:
+        if from_document:
+            if assessment_ran:
+                return (
+                    "I extracted the complaint document and prepared an initial risk "
+                    "assessment. The record is ready for QA review."
+                )
+            return (
+                "I extracted the complaint document. The record is ready for QA review."
+            )
         if assessment_ran:
             return (
                 "I extracted the complaint and prepared an initial risk "
@@ -37,9 +49,17 @@ def new_complaint_message(
 
     missing = join_field_labels(missing_required_fields)
     if extracted:
-        prefix = "I extracted the available complaint details."
+        prefix = (
+            "I extracted the available complaint details from the document."
+            if from_document
+            else "I extracted the available complaint details."
+        )
     else:
-        prefix = "I could not extract additional complaint details from the message."
+        prefix = (
+            "I could not extract additional complaint details from the document."
+            if from_document
+            else "I could not extract additional complaint details from the message."
+        )
     if missing:
         return f"{prefix} I still need: {missing} before this record can be ready for review."
     return prefix

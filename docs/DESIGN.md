@@ -162,13 +162,14 @@ When a conversational correction updates field(s):
 
 Primary target: **desktop dual-pane** (assessment demo environment).
 
-**Implemented (Phase 3):**
+**Implemented (Phase 3+):**
 - **≥900px:** split layout — complaint ~62% / assistant ~38%; assistant pane can stick while scrolling.
 - **&lt;900px:** Assistant | Complaint segmented tabs (local UI state, not Redux).
   - Empty complaint (all field values `null`): Assistant initially selected.
   - Non-empty complaint: Complaint initially selected.
   - Manual tab switching always available.
-- Assistant composer is enabled for text complaints and corrections (Phase 5). Upload remains disabled until the document phase.
+  - After **successful document extraction**, the mobile pane switches to Complaint review (local callback; not Redux).
+- Assistant composer supports text complaints and corrections. Document upload/drop lives in the same Assistant panel.
 
 Do not build a separate marketing landing layout.
 
@@ -181,7 +182,8 @@ Do not build a separate marketing landing layout.
 - Provenance labels: Extracted / User edited / AI suggestion · Verify / Not provided (metadata beside fields; never written into input values).
 - Date fields are text inputs to preserve partial precision (e.g. “March 2026”).
 - Commit is disabled unless status is `ready_to_commit`; Reset uses a small modal confirmation.
-- Phase 5: Assistant composer is enabled for text/corrections. Upload stays disabled. Conversation messages live in the `assistant` Redux slice, not in complaint fields. While an Assistant request is in flight, complaint status is `processing` and is restored on failure.
+- Phase 5: Assistant composer is enabled for text/corrections. Conversation messages live in the `assistant` Redux slice, not in complaint fields. While an Assistant request is in flight, complaint status is `processing` and is restored on failure.
+- Document intake: restrained drop/choose area in the Assistant composer; selected `File` stays in component-local state (never Redux). Explicit **Analyze Document** action. Processing copy: “Analyzing complaint document…”. Failures preserve the draft; scanned/unsupported errors ask the user to choose another file rather than offering a meaningless text Retry.
 ---
 
 ## 10. Accessibility decisions

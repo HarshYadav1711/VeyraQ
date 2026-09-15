@@ -71,6 +71,7 @@ Principles:
 | Groq client | Model calls via env-configured model IDs |
 | Persistence layer | SQLAlchemy models + Alembic migrations |
 | Completeness / risk modules | Workflow nodes producing advisory + readiness signals |
+| Document service | In-memory PDF/TXT/EML text extraction (no persistence, no OCR) |
 
 ---
 
@@ -98,13 +99,15 @@ If the draft is already populated and intent is a different new complaint, the g
 
 ### 4.3 Document intake
 
-1. User uploads document via Copilot.
-2. Frontend sends file to FastAPI upload endpoint.
-3. Backend runs `extract_document_text` (PyMuPDF / TXT / EML).
-4. Extracted text enters the standard complaint workflow (same as §4.1 from intent/extraction onward).
-5. Response populates Redux/form.
+1. User selects a PDF, TXT, or EML file in the Assistant panel (drag/drop or file chooser) and explicitly chooses **Analyze Document**.
+2. Frontend posts multipart `file` + `current_fields` JSON to `POST /api/v1/assistant/process-document`. The browser sets the multipart boundary; clients must not set `Content-Type` manually.
+3. Backend validates size/type, extracts plain text **in memory** via `document_service` (PyMuPDF for PDF; stdlib for TXT/EML). Uploads are never written to disk or PostgreSQL.
+4. If the current draft is already populated, the API returns **409** and does not overwrite.
+5. Extracted text enters the **same** LangGraph complaint workflow (`build_complaint_graph`) as text intake, with `input_kind=document`. Empty-draft intent is deterministically `new_complaint` (no intent LLM call).
+6. Response reuses the assistant process contract (`intent`, `patch`, `status`, `missing_required_fields`, `assistant_message`) plus optional `{ filename, document_type }` metadata.
+7. Redux applies the patch with existing `applyFieldPatch`. Failures leave the draft unchanged.
 
-Document intake is not implemented in Phase 5.
+Scanned/image-only PDFs fail with a clear 422. OCR is intentionally not implemented.
 
 ### 4.4 Commit
 
@@ -129,19 +132,14 @@ Implemented under **`/api/v1`**:
 | Group | Purpose |
 | --- | --- |
 | `POST /assistant/process` | Text complaint extraction and conversational correction |
+| `POST /assistant/process-document` | Document upload (PDF/TXT/EML) → text extraction → same LangGraph workflow |
 | `POST /complaints/commit` | Explicit human commit |
 | `GET /complaints` | List committed complaints |
 | `GET /complaints/{id}` | Retrieve a committed complaint |
 | `GET /health` | Liveness |
 | `GET /readiness` | Readiness including DB |
 
-Deferred:
-
-| Group | Purpose |
-| --- | --- |
-| `POST /complaints/upload` | Document upload + processing (later phase) |
-
-Assistant request text is limited to **12,000 characters**. Blank messages return 422. AI provider failures return 503 without mutating the client draft.
+Assistant request text is limited to **12,000 characters**. Document uploads are limited to **8 MB**, **20 PDF pages**, and **20,000 extracted characters** (reject, never silently truncate). Blank messages return 422. AI provider failures return 503 without mutating the client draft.
 
 Request/response contracts use Pydantic models shared conceptually with frontend types.
 
@@ -262,8 +260,9 @@ Alembic manages migrations. SQLAlchemy 2.x is the ORM.
 | Runtimes | Node.js 22 LTS (frontend); Python 3.12 (backend) |
 | Groq model | Environment `GROQ_MODEL`; default `openai/gpt-oss-20b` (strict structured output) |
 | Assistant input limit | 12,000 characters |
+| Document intake | In-memory PDF/TXT/EML extraction via `document_service`; PyMuPDF; no persistence; no OCR |
 
 ## 12. Still open (deferred)
 
-1. Transport for file upload (multipart) details and max size limits.
-2. Document text extraction path (Phase 7).
+1. Duplicate detection against committed history (later phase).
+2. Tier 2/3 advisory bonuses (root cause / CAPA / summary) when Tier 1 is solid.

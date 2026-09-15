@@ -25,6 +25,7 @@ Groq is the LLM provider. Model identifiers come from environment configuration 
 | `current_fields` | Snapshot of the Redux complaint draft |
 | `intent` | `new_complaint` or `correction` |
 | `blocked` | True when a populated draft would be overwritten by a new complaint |
+| `input_kind` | `text` or `document` (deterministic Assistant messaging; same graph topology) |
 | `source_extraction` | Last structured LLM payload used by a node |
 | `source_patch` / `correction_patch` / `assessment_patch` | Partial `ComplaintPatch` dicts |
 | `merged_fields` | Draft after applying patches |
@@ -37,7 +38,7 @@ Groq is the LLM provider. Model identifiers come from environment configuration 
 
 **Rule:** Failed Groq/schema errors abort the request. The API returns 503 and the client does not apply a patch.
 
-Phase 5 intents are exactly `new_complaint` and `correction`. Follow-up Q&A, documents, duplicates, RCA, and CAPA are not in this graph yet.
+Intents remain `new_complaint` and `correction`. Document intake reuses the new-complaint path after deterministic text extraction outside the graph.
 
 ---
 
@@ -78,13 +79,15 @@ Risk-relevant correction fields: `product_name`, `product_strength_grade`, `batc
 
 If a populated draft is classified as a new complaint, routing skips extraction and returns a safe message. The draft is not replaced.
 
-### 3.4 Document path (not in Phase 5)
+### 3.4 Document path
 
-| Node | Purpose |
-| --- | --- |
-| `extract_document_text` | Extract plain text via PyMuPDF / TXT / EML; fail clearly if empty/unreadable |
+Document bytes are **not** parsed inside LangGraph. FastAPI uses `app/services/document_service.py` to extract plain text (PyMuPDF / TXT / EML) in memory, then invokes the same compiled graph with:
 
-Then reuse the standard new-complaint workflow on extracted text.
+- `user_message` = extracted source text
+- `input_kind` = `document`
+- empty-draft check enforced at the API (409 if populated)
+
+Because the draft must be empty, `determine_intent` deterministically selects `new_complaint` with **no** intent LLM call. Source grounding, risk, and completeness are unchanged.
 
 ### 3.5 Optional later nodes
 
@@ -158,13 +161,15 @@ determine_intent → check_completeness → prepare_response → END
 
 ### Document
 
-Not implemented in Phase 5. Locked future path (input type already known — do **not** run intent detection):
+```
+POST /assistant/process-document
+  → validate + extract_document (in-memory)
+  → build_complaint_graph (input_kind=document)
+  → determine_intent (empty draft → new_complaint, no LLM)
+  → extract_source_facts onward (same as text intake)
+```
 
-```
-extract_document_text
-  → (on success) extract_source_facts onward
-  → (on failure) END with error
-```
+On extraction failure: HTTP error; no fake extraction; draft unchanged.
 
 ### Follow-up
 

@@ -198,8 +198,10 @@ If API vs FDF cannot be determined, do not invent a classification as source fac
 
 ## 10. Document assumptions
 
-- PDFs with selectable text are the primary document path.
-- Scanned-image-only PDFs without OCR are expected to fail extraction gracefully.
+- Supported intake formats: **PDF** (embedded selectable text), **TXT**, **EML**.
+- PDF text is extracted with PyMuPDF from in-memory bytes. Documents are intake material only — not persisted to disk or PostgreSQL.
+- Scanned-image-only PDFs without embedded text fail gracefully with a clear error. **OCR is not implemented** and must not be claimed in the UI.
+- Extracted document text becomes the complaint source text (`complaint_description` provenance = `source` when preserved). Partial dates remain textual (e.g. `March 2026`).
 - No claim is made that document handling meets regulated controlled-document standards.
 
 ---

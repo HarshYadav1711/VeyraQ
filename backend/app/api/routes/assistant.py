@@ -1,13 +1,14 @@
-"""Assistant process API: text complaint intelligence via LangGraph."""
+"""Assistant process API: text and document complaint intelligence via LangGraph."""
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from app.agents.graph import build_complaint_graph, build_initial_state, result_patch
 from app.agents.protocol import AIService
@@ -16,8 +17,11 @@ from app.domain.complaint import (
     ComplaintFields,
     ComplaintPatch,
     ComplaintStatus,
+    is_complaint_fields_empty,
 )
 from app.services.ai_errors import AIServiceError
+from app.services.document_limits import POPULATED_DRAFT_MESSAGE
+from app.services.document_service import DocumentValidationError, extract_document
 from app.services.groq_service import GroqService
 
 logger = logging.getLogger(__name__)
@@ -43,6 +47,13 @@ class AssistantProcessRequest(BaseModel):
         return value
 
 
+class DocumentMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str
+    document_type: Literal["pdf", "txt", "eml"]
+
+
 class AssistantProcessResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -52,10 +63,52 @@ class AssistantProcessResponse(BaseModel):
     missing_required_fields: list[str]
     assistant_message: str
     warnings: list[str] = Field(default_factory=list)
+    document: DocumentMetadata | None = None
 
 
 def get_ai_service() -> AIService:
     return GroqService.from_settings()
+
+
+def _response_from_graph_result(
+    result: dict,
+    *,
+    document: DocumentMetadata | None = None,
+) -> AssistantProcessResponse:
+    target_status = result["target_status"]
+    if target_status not in {
+        ComplaintStatus.NEEDS_INFORMATION.value,
+        ComplaintStatus.READY_TO_COMMIT.value,
+    }:
+        target_status = ComplaintStatus.NEEDS_INFORMATION.value
+
+    intent = result["intent"] if result["intent"] == "correction" else "new_complaint"
+    return AssistantProcessResponse(
+        intent=intent,
+        patch=result_patch(result),
+        status=target_status,
+        missing_required_fields=result["missing_required_fields"],
+        assistant_message=result["assistant_message"],
+        warnings=result["warnings"],
+        document=document,
+    )
+
+
+def _parse_current_fields(raw: str) -> ComplaintFields:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="current_fields must be valid JSON.",
+        ) from exc
+    try:
+        return ComplaintFields.model_validate(payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="current_fields must match the complaint field contract.",
+        ) from exc
 
 
 @router.post(
@@ -84,6 +137,7 @@ def process_assistant_message(
                 user_message=request.message,
                 fields=request.fields,
                 request_id=request_id,
+                input_kind="text",
             )
         )
     except AIServiceError:
@@ -93,20 +147,86 @@ def process_assistant_message(
             detail=SAFE_UNAVAILABLE_DETAIL,
         ) from None
 
-    target_status = result["target_status"]
-    if target_status not in {
-        ComplaintStatus.NEEDS_INFORMATION.value,
-        ComplaintStatus.READY_TO_COMMIT.value,
-    }:
-        target_status = ComplaintStatus.NEEDS_INFORMATION.value
-
-    intent = result["intent"] if result["intent"] == "correction" else "new_complaint"
     logger.info("assistant.process success request_id=%s", request_id)
-    return AssistantProcessResponse(
-        intent=intent,
-        patch=result_patch(result),
-        status=target_status,
-        missing_required_fields=result["missing_required_fields"],
-        assistant_message=result["assistant_message"],
-        warnings=result["warnings"],
+    return _response_from_graph_result(result)
+
+
+@router.post(
+    "/process-document",
+    response_model=AssistantProcessResponse,
+    responses={
+        status.HTTP_409_CONFLICT: {"description": "Draft already populated"},
+        status.HTTP_413_CONTENT_TOO_LARGE: {"description": "Upload too large"},
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {"description": "Unsupported file type"},
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "AI processing unavailable"},
+    },
+)
+async def process_assistant_document(
+    file: UploadFile = File(...),
+    current_fields: str = Form(...),
+    ai_service: AIService = Depends(get_ai_service),
+) -> AssistantProcessResponse:
+    request_id = str(uuid.uuid4())
+    fields = _parse_current_fields(current_fields)
+
+    if not is_complaint_fields_empty(fields):
+        logger.info(
+            "assistant.process_document conflict request_id=%s",
+            request_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=POPULATED_DRAFT_MESSAGE,
+        )
+
+    file_bytes = await file.read()
+    try:
+        extracted = extract_document(
+            filename=file.filename,
+            content_type=file.content_type,
+            file_bytes=file_bytes,
+        )
+    except DocumentValidationError as exc:
+        logger.info(
+            "assistant.process_document validation_failed request_id=%s status=%s type=%s bytes=%s",
+            request_id,
+            exc.status_code,
+            (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else "unknown",
+            len(file_bytes),
+        )
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from None
+
+    logger.info(
+        "assistant.process_document start request_id=%s type=%s bytes=%s pages=%s model=%s",
+        request_id,
+        extracted.document_type,
+        extracted.byte_size,
+        extracted.page_count,
+        getattr(ai_service, "model_id", "unknown"),
+    )
+
+    graph = build_complaint_graph(ai_service)
+    try:
+        result = graph.invoke(
+            build_initial_state(
+                user_message=extracted.text,
+                fields=fields,
+                request_id=request_id,
+                input_kind="document",
+            )
+        )
+    except AIServiceError:
+        logger.info("assistant.process_document failed request_id=%s", request_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SAFE_UNAVAILABLE_DETAIL,
+        ) from None
+
+    logger.info("assistant.process_document success request_id=%s", request_id)
+    return _response_from_graph_result(
+        result,
+        document=DocumentMetadata(
+            filename=extracted.filename,
+            document_type=extracted.document_type,
+        ),
     )

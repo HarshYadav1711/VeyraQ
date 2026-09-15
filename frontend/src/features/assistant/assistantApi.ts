@@ -5,6 +5,11 @@ export interface AssistantProcessRequest {
   fields: ComplaintFields
 }
 
+export interface DocumentMetadata {
+  filename: string
+  document_type: 'pdf' | 'txt' | 'eml'
+}
+
 export interface AssistantProcessResponse {
   intent: 'new_complaint' | 'correction'
   patch: ComplaintPatch
@@ -12,6 +17,7 @@ export interface AssistantProcessResponse {
   missing_required_fields: string[]
   assistant_message: string
   warnings: string[]
+  document?: DocumentMetadata | null
 }
 
 function apiBaseUrl(): string {
@@ -35,6 +41,40 @@ export class AssistantApiError extends Error {
 const FALLBACK_UNAVAILABLE =
   'AI processing is temporarily unavailable. Your complaint draft has not been changed.'
 
+function detailFromPayload(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+  const detail = (payload as { detail?: unknown }).detail
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail
+  }
+  if (detail && typeof detail === 'object' && 'detail' in detail) {
+    const nested = (detail as { detail?: unknown }).detail
+    if (typeof nested === 'string' && nested.trim()) {
+      return nested
+    }
+  }
+  return null
+}
+
+async function raiseForErrorResponse(response: Response): Promise<never> {
+  let message = FALLBACK_UNAVAILABLE
+  try {
+    const payload: unknown = await response.json()
+    const detail = detailFromPayload(payload)
+    if (detail) {
+      message = detail
+    }
+  } catch {
+    // Keep the safe default message.
+  }
+  if (response.status >= 500) {
+    message = FALLBACK_UNAVAILABLE
+  }
+  throw new AssistantApiError(message, response.status)
+}
+
 export async function postAssistantProcess(
   body: AssistantProcessRequest,
 ): Promise<AssistantProcessResponse> {
@@ -45,27 +85,27 @@ export async function postAssistantProcess(
   })
 
   if (!response.ok) {
-    let message = FALLBACK_UNAVAILABLE
-    try {
-      const payload = (await response.json()) as {
-        detail?: string | { detail?: string }
-      }
-      if (typeof payload.detail === 'string' && payload.detail.trim()) {
-        message = payload.detail
-      } else if (
-        payload.detail &&
-        typeof payload.detail === 'object' &&
-        payload.detail.detail
-      ) {
-        message = payload.detail.detail
-      }
-    } catch {
-      // Keep the safe default message.
-    }
-    if (response.status >= 500) {
-      message = FALLBACK_UNAVAILABLE
-    }
-    throw new AssistantApiError(message, response.status)
+    await raiseForErrorResponse(response)
+  }
+
+  return (await response.json()) as AssistantProcessResponse
+}
+
+export async function processComplaintDocument(
+  file: File,
+  fields: ComplaintFields,
+): Promise<AssistantProcessResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('current_fields', JSON.stringify(fields))
+
+  const response = await fetch(`${apiBaseUrl()}/assistant/process-document`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    await raiseForErrorResponse(response)
   }
 
   return (await response.json()) as AssistantProcessResponse

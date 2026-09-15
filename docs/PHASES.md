@@ -181,16 +181,21 @@ Implemented together with Phase 5 text intelligence (correction graph path, `/as
 **Goal:** PDF (and practical TXT/EML) text extraction into the same workflow.
 
 **Includes:**
-- Upload endpoint
-- `extract_document_text` with PyMuPDF
-- Graceful failure for non-extractable files
-- Copilot upload UX
+- `POST /api/v1/assistant/process-document` (multipart)
+- `document_service` with PyMuPDF + stdlib TXT/EML (in-memory only)
+- Reuse of `build_complaint_graph` (no second AI pipeline)
+- Assistant upload/drop UX + mobile review switch after success
+- Focused Pytest / Vitest coverage
+
+**Excludes:**
+- OCR / scanned-image pipelines, DOCX/XLSX, document persistence, RAG/embeddings
 
 **Exit criteria:**
 - Text PDF complaint populates form via same structuring path
 - Bad/empty extraction does not invent content
+- Populated draft returns 409; grounding still drops ungrounded facts
 
----
+**Status:** Complete.
 
 ## Phase 8 — Tier 1 remaining bonus + hardening
 

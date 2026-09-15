@@ -127,7 +127,8 @@ describe('Assistant text workflow', () => {
     const composer = screen.getByLabelText('Complaint input')
     expect(composer).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Upload document' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Choose file' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Analyze Document' })).toBeDisabled()
   })
 
   it('does not submit whitespace-only messages', () => {

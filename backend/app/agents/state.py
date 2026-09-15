@@ -1,4 +1,6 @@
-from typing import TypedDict
+from typing import Literal, TypedDict
+
+InputKind = Literal["text", "document"]
 
 
 class ComplaintGraphState(TypedDict):
@@ -6,6 +8,7 @@ class ComplaintGraphState(TypedDict):
     current_fields: dict[str, object]
     intent: str
     blocked: bool
+    input_kind: str
     source_extraction: dict[str, object]
     source_patch: dict[str, object]
     correction_patch: dict[str, object]

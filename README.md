@@ -8,14 +8,14 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 
 ## Status
 
-Phase 5 complete: LangGraph + Groq text complaint intelligence (extraction, grounding, correction patches, advisory risk, completeness). Document upload is not in this phase.
+Document complaint intake is complete: PDF / TXT / EML extraction feeds the same LangGraph workflow as text intake (grounding, risk, completeness, patch merge). Scanned-image OCR is intentionally not included because the assessment does not require production-grade OCR.
 
 ## Stack
 
 | Layer | Technologies |
 | --- | --- |
 | Frontend | React, TypeScript, Vite, Redux Toolkit, CSS Modules, Inter |
-| Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy 2.0, Alembic |
+| Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy 2.0, Alembic, PyMuPDF |
 | Database | PostgreSQL |
 | AI | LangGraph StateGraph, Groq (official Python SDK) |
 
@@ -78,7 +78,10 @@ Optional:
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Assistant messages are limited to 12,000 characters.
+Limits:
+
+- Assistant text messages: 12,000 characters
+- Document uploads: PDF, TXT, or EML · up to 8 MB · up to 20 PDF pages · up to 20,000 extracted characters (rejected if over limit — never silently truncated)
 
 Start the API:
 
@@ -115,8 +118,9 @@ Complaint API (after migrations):
 - `GET /api/v1/complaints`
 - `GET /api/v1/complaints/{id}`
 - `POST /api/v1/assistant/process`
+- `POST /api/v1/assistant/process-document`
 
-Committed records are not updated or deleted through this assessment API.
+Committed records are not updated or deleted through this assessment API. Uploaded documents are processed in memory only and are not stored.
 
 ### Text complaint demo
 
@@ -135,6 +139,10 @@ Correction: the batch is CFX260418 and 30 capsules were affected.
 ```
 
 Only explicitly corrected fields should change (plus a refreshed advisory risk assessment when the change is risk-relevant). Commit remains a separate human action.
+
+### Document complaint demo
+
+In the Assistant panel, choose a text-based PDF, TXT, or EML pharmaceutical complaint, then click **Analyze Document**. The draft must be empty (use New Complaint first if needed). Scanned image-only PDFs are rejected clearly; OCR is not available in this build.
 
 ### Backend tests
 
