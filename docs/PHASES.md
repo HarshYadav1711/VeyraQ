@@ -58,21 +58,29 @@ Do not start a later phase by breaking earlier demos.
 
 ---
 
-## Phase 2 — Domain models & API contracts
+## Phase 2 — Complaint domain contracts and Redux state
 
-**Goal:** Define Pydantic schemas, SQLAlchemy models, and Redux complaint state shape aligned to core fields + provenance + status.
+**Goal:** Define the canonical complaint data contract (Pydantic + TypeScript) and the Redux complaint draft slice—without UI, API routes, persistence, or AI.
 
 **Includes:**
-- Complaint field schemas with provenance
-- Status enum
-- Advisory assessment schema
-- Redux slice(s) for complaint draft
-- Stub API routes returning fixtures (optional) or empty validated shapes
+- `ComplaintFieldValue` co-located provenance model
+- Canonical field keys, statuses, patch contract
+- Backend domain models + validation tests
+- Frontend types + complaint Redux slice + patch semantics tests
+- Documentation updates for fields, provenance, dates, patch contract
+
+**Excludes:**
+- Complaint form / Copilot UI
+- FastAPI complaint endpoints
+- SQLAlchemy complaint tables / Alembic domain migrations
+- LangGraph, Groq, document parsing, completeness/risk/duplicate logic
 
 **Exit criteria:**
-- Shared conceptual contract documented in code types/schemas
-- Redux state can hold a full draft without AI
+- Empty draft is `pending_triage` with null/missing fields
+- Patch updates only listed fields; unrelated fields unchanged
+- Frontend build + Vitest and backend Pytest pass without PostgreSQL
 
+**Status:** Complete.
 ---
 
 ## Phase 3 — Dual-pane UI shell

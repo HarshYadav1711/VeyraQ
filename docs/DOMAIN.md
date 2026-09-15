@@ -26,139 +26,170 @@ The module stops at structured intake, advisory assessment, and human commit to 
 | QMS-style record store | Application database persistence resembling a complaint log entry—not a certified enterprise QMS |
 | API (pharma) | Active Pharmaceutical Ingredient (not “application programming interface” in domain text) |
 | FDF | Finished Dosage Form |
-| Batch / lot number | Manufacturing batch or lot identifier supplied by the customer or source text |
-| Severity (suggested) | Advisory AI classification of complaint seriousness—not an automatic regulatory disposition |
-| CAPA | Corrective and Preventive Action — VeyraQ may **suggest** ideas only; it does not run CAPA lifecycle |
+| Batch / lot number | Manufacturing batch or lot identifier (`batch_lot_number`) |
+| Severity (suggested) | Advisory AI classification (`initial_severity`)—not an automatic regulatory disposition |
+| Priority | Advisory intake priority signal |
+| CAPA | Corrective and Preventive Action — suggestions only; not full CAPA lifecycle |
 | Root cause | Hypothesized cause — advisory only |
 | Site block | Originating manufacturing site / block / plant area when mentioned or known |
-| Non-product materials | Impacted materials that are not the primary product (e.g., packaging components) when relevant |
-| Provenance | Origin classification of a field value: source, user, inferred, missing |
+| Non-product materials | Impacted materials that are not the primary product (NPM) |
+| Provenance | Origin classification co-located with each field value |
 
 ---
 
-## 3. Complaint field dictionary
+## 3. Canonical complaint fields (locked)
 
-Field names below are **logical**. Implementation may use snake_case equivalents.
+Every field is a `ComplaintFieldValue`: `{ value, provenance, confidence, evidence }`.  
+Value and provenance are **never** stored in separate parallel maps.
 
 ### 3.1 Origin & customer details
 
-| Field | Description | Typical source |
-| --- | --- | --- |
-| complaint_source | Channel or origin of the complaint (e.g., email, phone note, document) | User / source text / inferred only if clearly implied—prefer missing if unclear |
-| customer_name | Customer or reporting organization/person name | Source text preferred |
+| Field key | Description |
+| --- | --- |
+| `complaint_source` | Channel or origin of the complaint |
+| `customer_name` | Customer or reporting organization/person |
 
 ### 3.2 Product & batch identification
 
-| Field | Description |
+| Field key | Description |
 | --- | --- |
-| product_name | Name of the product or material complained about |
-| product_strength_grade | Strength, grade, or similar identifying quality attribute |
-| batch_number | Batch or lot identifier |
-| affected_quantity | Quantity impacted (retain units when present, e.g., “48 capsules”) |
-| manufacturing_date | Manufacturing date if provided |
-| expiry_date | Expiry date if provided |
+| `product_name` | Product or material complained about |
+| `product_strength_grade` | Strength, grade, or similar attribute |
+| `batch_lot_number` | Batch or lot identifier |
+| `affected_quantity` | Impacted quantity (retain units, e.g. “48 capsules”) |
+| `manufacturing_date` | Manufacturing date **as textual intake string** |
+| `expiry_date` | Expiry date **as textual intake string** |
 
-### 3.3 Facility & material impact
+### 3.3 Complaint details
 
-| Field | Description |
+| Field key | Description |
 | --- | --- |
-| originating_site_block | Site/block associated with manufacture or handling, if provided |
-| impacted_non_product_materials | Non-product materials impacted, if provided |
+| `complaint_date` | Complaint date **as textual intake string** |
+| `complaint_category` | Defect/issue category (UI may label “Complaint Type / Category”) |
+| `complaint_description` | Description of the complaint |
 
-### 3.4 Defect analysis
+Do **not** create a separate `complaint_type` field unless a later requirement justifies both.
 
-| Field | Description |
+### 3.4 Facility & material impact
+
+| Field key | Description |
 | --- | --- |
-| complaint_category | Category label for the defect/issue type |
-| complaint_description | Structured or cleaned description of the complaint |
+| `originating_site_block` | Site/block associated with manufacture or handling |
+| `impacted_non_product_materials` | Impacted non-product materials (NPM) |
 
-### 3.5 AI initial assessment (advisory)
+### 3.5 Initial assessment (advisory)
 
-| Field | Description |
+| Field key | Description |
 | --- | --- |
-| suggested_severity | AI-suggested severity |
-| suggested_next_action | AI-suggested next step for QA consideration |
-| initial_risk_assessment | Short advisory risk narrative / classification output |
+| `initial_severity` | Suggested severity |
+| `priority` | Suggested priority |
+| `suggested_next_action` | Suggested next step for QA |
+| `initial_risk_assessment` | Advisory risk narrative / classification |
 
-These assessment fields are **never** final dispositions.
+Assessment fields are never final dispositions.
 
 ---
 
-## 4. Provenance model (domain rules)
+## 4. Provenance definitions (locked)
 
-| Provenance | Domain meaning | UI implication |
-| --- | --- | --- |
-| source | Explicitly present in customer text/document | Treated as extracted evidence |
-| user | Entered or corrected by QA user | Highest human trust for that field |
-| inferred | AI suggested; not explicit in source | Must look different; not silently equated to source |
-| missing | Not reliably determinable | Display “Not provided”; store null/empty equivalent |
-
-**Hallucination rule:** If the source does not contain a fact, the system must not invent it as source. Prefer missing. Inferred values, when used, must be labeled inferred.
-
----
-
-## 5. Status semantics
-
-| Status | Domain meaning |
+| Provenance | Meaning |
 | --- | --- |
-| Pending Triage | Draft exists; awaiting or beginning processing/review |
-| Processing | AI workflow running |
-| Needs Information | Required intake information incomplete |
-| Ready to Commit | Completeness/readiness conditions satisfied; awaiting human commit |
-| Committed | Human explicitly committed the record |
+| `source` | Explicitly present in customer text/document and extracted from that source |
+| `user` | Directly entered, edited, or corrected by the human |
+| `inferred` | AI suggested; not explicitly stated by the source |
+| `missing` | No reliable value (`value = null`) |
 
-Status transitions are product rules for this assessment tool, not claims of regulated workflow validation.
+Rules:
+- Empty initial fields use `provenance = missing` and `value = null`.
+- User edits use `provenance = user`; do not invent `confidence` / `evidence` for user-entered fields (leave null).
+- AI extraction uses `source` when explicit evidence exists; otherwise prefer `missing` over guessing.
+- AI suggestions without explicit source support use `inferred`.
+- `confidence` is optional (`null` unless produced by extraction logic); range 0.0–1.0 when set.
+- `evidence` is optional (`null` unless supported by source text).
+
+**Hallucination rule:** Never invent facts as `source`. Prefer `missing`.
 
 ---
 
-## 6. Completeness assumptions (project-level)
+## 5. Intake date / precision rule (locked)
 
-For this assessment, a complaint is generally **not** Ready to Commit while critical identification or defect understanding is missing.
+At complaint-intake level, these fields are **strings**, not `Date` / `datetime` types:
+
+- `manufacturing_date`
+- `expiry_date`
+- `complaint_date`
+
+Source text may contain partial dates such as `"March 2026"` or `"February 2028"`.  
+Converting those to `2026-03-01` / `2028-02-01` would invent unsupported day precision.
+
+**Preserve the supplied textual precision.** Later normalization may add structured helpers without destroying the source representation.
+
+---
+
+## 6. Complaint status (locked)
+
+Wire / code values (snake_case):
+
+| Status | Meaning |
+| --- | --- |
+| `pending_triage` | Initial draft; awaiting or beginning processing/review |
+| `processing` | AI workflow running |
+| `needs_information` | Required intake information incomplete |
+| `ready_to_commit` | Completeness/readiness conditions satisfied; awaiting human commit |
+| `committed` | Human explicitly committed the record |
+
+Initial draft status: **`pending_triage`**.
+
+UI may display human-readable labels (e.g. “Pending Triage”). Status transitions are product rules for this assessment tool, not claims of regulated workflow validation.
+
+---
+
+## 7. Completeness assumptions (project-level)
 
 **Locked Ready-to-Commit minimum fields:**
-- complaint source
-- customer name
-- product name
-- batch / lot number
-- complaint category
-- complaint description
-- completed initial risk assessment
+- `complaint_source`
+- `customer_name`
+- `product_name`
+- `batch_lot_number`
+- `complaint_category`
+- `complaint_description`
+- completed `initial_risk_assessment`
 
-Missing any of these critical fields results in **Needs Information**.
+Missing any of these critical fields results in **`needs_information`**.
 
 Other fields may legitimately be unavailable and do **not** block Ready to Commit by themselves:
-- affected quantity
-- manufacturing date
-- expiry date
-- originating site block
-- impacted non-product materials (NPM)
+- `affected_quantity`
+- `manufacturing_date`
+- `expiry_date`
+- `complaint_date`
+- `originating_site_block`
+- `impacted_non_product_materials`
+- `priority` / `initial_severity` / `suggested_next_action` as separate advisory signals (risk assessment itself is required when complete)
 
-Duplicate detection (when implemented) uses **committed** PostgreSQL complaint history plus small fictional seed data for demonstration. No vector database. Duplicate suggestions do not replace human judgment about whether two complaints are the same event.
+Duplicate detection (when implemented) uses **committed** PostgreSQL history plus small fictional seed data. No vector database.
 
 ---
 
-## 7. API vs FDF assumptions
+## 8. API vs FDF assumptions
 
 | Context | Typical complaint cues (illustrative, not exhaustive) |
 | --- | --- |
 | API | Material identity, grade, impurity/contamination, packaging of bulk, CoA-related customer claims |
 | FDF | Dosage form defects, count/quantity, labeling, tablets/capsules appearance, blister/bottle issues |
 
-VeyraQ may use category/description cues to support structuring. It does **not** require the user to select a full manufacturing execution context.
-
-If API vs FDF cannot be determined, do not invent a classification as source fact unless a dedicated optional inferred field is explicitly designed and labeled.
+If API vs FDF cannot be determined, do not invent a classification as source fact.
 
 ---
 
-## 8. Risk assessment assumptions
+## 9. Risk assessment assumptions
 
 - Risk output is **advisory** for QA.
-- Suggested severity and next action do not auto-commit or auto-notify.
-- Reassessment after patch may occur when patched fields could change risk (per AI workflow), without rewriting unrelated complaint facts.
+- Suggested severity, priority, and next action do not auto-commit or auto-notify.
+- Reassessment after patch may occur when patched fields could change risk, without rewriting unrelated complaint facts.
 
 ---
 
-## 9. Document assumptions
+## 10. Document assumptions
 
 - PDFs with selectable text are the primary document path.
 - Scanned-image-only PDFs without OCR are expected to fail extraction gracefully.
@@ -166,7 +197,7 @@ If API vs FDF cannot be determined, do not invent a classification as source fac
 
 ---
 
-## 10. What this domain doc does **not** claim
+## 11. What this domain doc does **not** claim
 
 - Compliance with specific FDA/EMA/WHO guidance as a certified implementation
 - Validated computer system status
@@ -174,17 +205,15 @@ If API vs FDF cannot be determined, do not invent a classification as source fac
 - Completeness of pharmacovigilance (adverse event) reporting workflows
 - That customer complaints and adverse events are the same process
 
-If a complaint text appears to describe a patient safety adverse event, the assessment UI may still capture it as a complaint draft; VeyraQ does not implement a separate pharmacovigilance module in this scope.
-
 ---
 
-## 11. Example (patch semantics in domain terms)
+## 12. Example (patch semantics)
 
 Source already extracted product and description. User says:
 
 > The batch is BMX240602 and affected quantity is 48 capsules.
 
 Domain-correct outcome:
-- `batch_number` becomes user (or user-confirmed) value `BMX240602`
+- `batch_lot_number` becomes user value `BMX240602`
 - `affected_quantity` becomes `48 capsules`
 - All other domain fields remain as they were

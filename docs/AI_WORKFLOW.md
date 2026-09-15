@@ -182,27 +182,40 @@ Prefer missing over inferred when confidence is weak. Inferred values must remai
 
 ## 8. Patch semantics (critical)
 
-User:
+Corrections and structured extraction results update the draft via an explicit **patch contract**:
 
-> The batch is BMX240602 and affected quantity is 48 capsules.
-
-Required behavior:
-
-```text
-patch = {
-  batch_number: "BMX240602",
-  affected_quantity: "48 capsules"
+```json
+{
+  "changes": {
+    "batch_lot_number": {
+      "value": "BMX240602",
+      "provenance": "user",
+      "confidence": null,
+      "evidence": null
+    },
+    "affected_quantity": {
+      "value": "48 capsules",
+      "provenance": "user",
+      "confidence": null,
+      "evidence": null
+    }
+  }
 }
 ```
 
-`apply_patch`:
-- updates only those fields
-- sets provenance to `user`
-- leaves product_name, dates, description, etc. unchanged
+Rules:
+- Only keys present under `changes` may update.
+- Unrelated fields must remain unchanged (same values and provenance).
+- Do **not** define correction behavior as “regenerate the complete complaint.”
+- Extraction may emit a patch with `provenance: source` (explicit evidence) or `inferred` (AI suggestion without explicit source statement).
+- Conversational corrections and manual edits use `provenance: user`.
+- Applying a patch does not by itself change complaint status.
 
-`reassess_affected_outputs_if_required`:
-- may update completeness and advisory risk/summary
-- must not rewrite unrelated core fields
+Example user message:
+
+> The batch is BMX240602 and affected quantity is 48 capsules.
+
+Expected: only `batch_lot_number` and `affected_quantity` change.
 
 ---
 

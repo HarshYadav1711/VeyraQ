@@ -106,21 +106,23 @@ Rules:
 ### Product & batch identification
 - product name
 - product strength / grade
-- batch / lot number
+- batch / lot number (`batch_lot_number`)
 - affected quantity
 - manufacturing date
 - expiry date
+
+### Complaint details
+- complaint date
+- complaint category
+- complaint description
 
 ### Facility & material impact
 - originating site block
 - impacted non-product materials
 
-### Defect analysis
-- complaint category
-- complaint description
-
 ### AI initial assessment
-- suggested severity
+- initial severity
+- priority
 - suggested next action
 - initial risk assessment
 
@@ -145,7 +147,7 @@ document upload → deterministic text extraction → complaint extraction graph
 Example user message: *"The batch is BMX240602 and affected quantity is 48 capsules."*
 
 Expected result — **ONLY**:
-- `batch_number` = BMX240602
+- `batch_lot_number` = BMX240602
 - `affected_quantity` = 48 capsules
 
 No other field may be regenerated or overwritten. **Patch behavior is a critical project requirement.**

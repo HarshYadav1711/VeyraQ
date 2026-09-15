@@ -150,6 +150,14 @@ Request/response contracts use Pydantic models shared conceptually with frontend
 
 **Locked:** Complaint drafts remain client-side in Redux until the user explicitly commits. PostgreSQL stores committed complaints. Do not auto-persist drafts.
 
+### Draft field contract (locked)
+
+- Frontend and backend share one conceptual complaint contract (mirrored TypeScript + Pydantic).
+- Each canonical field is a `ComplaintFieldValue`: `{ value, provenance, confidence, evidence }` co-located—not a separate provenance map.
+- Uncommitted draft lives in Redux under the `complaint` slice (`fields`, `status`, `recentlyUpdatedFields`).
+- Updates that change only some fields use an explicit **`ComplaintPatch`** (`changes` map). Never “replace the whole regenerated complaint” as the correction contract.
+- SQL persistence models and Alembic migrations for complaints are deferred until a later phase.
+
 ---
 
 ## 7. AI integration boundary

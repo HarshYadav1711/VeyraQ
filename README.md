@@ -8,7 +8,7 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 
 ## Status
 
-Phase 1 complete: runnable frontend/backend foundation (no complaint or AI logic yet).
+Phase 2 complete: canonical complaint domain contracts + Redux complaint draft slice (no complaint UI/API/AI yet).
 
 ## Stack
 

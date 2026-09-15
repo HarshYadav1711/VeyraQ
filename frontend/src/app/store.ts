@@ -1,7 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 
+import complaintReducer from '../features/complaint/complaintSlice'
+
 export const store = configureStore({
-  reducer: {},
+  reducer: {
+    complaint: complaintReducer,
+  },
 })
 
 export type RootState = ReturnType<typeof store.getState>
