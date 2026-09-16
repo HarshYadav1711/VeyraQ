@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.db.base import Base
 from app.db.models import Complaint  # noqa: F401 — register metadata for Alembic
+from app.db.url import normalize_database_url
 
 config = context.config
 
@@ -13,7 +14,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # URL comes from application settings, not a hard-coded alembic.ini value.
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Neon/Vercel may inject postgresql://; normalize for SQLAlchemy + psycopg 3.
+config.set_main_option(
+    "sqlalchemy.url",
+    normalize_database_url(settings.DATABASE_URL),
+)
 
 target_metadata = Base.metadata
 
@@ -33,7 +38,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    configuration["sqlalchemy.url"] = normalize_database_url(settings.DATABASE_URL)
 
     connectable = engine_from_config(
         configuration,

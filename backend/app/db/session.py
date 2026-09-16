@@ -5,13 +5,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
+from app.db.url import normalize_database_url
+
+database_url = normalize_database_url(settings.DATABASE_URL)
 
 _connect_args: dict[str, object] = {}
-if settings.DATABASE_URL.startswith("postgresql"):
+if database_url.startswith("postgresql"):
     _connect_args["connect_timeout"] = 3
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    database_url,
     pool_pre_ping=True,
     connect_args=_connect_args,
 )

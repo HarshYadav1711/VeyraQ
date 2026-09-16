@@ -69,7 +69,7 @@ No `vercel.json` is required for the default layout. Do not add legacy `builds` 
 | `APP_ENV` | `production` |
 | `APP_NAME` | `VeyraQ` (optional; has default) |
 | `API_V1_PREFIX` | `/api/v1` (optional; keep default) |
-| `DATABASE_URL` | Neon URL — prefer pooled/serverless string for app traffic. Use `postgresql+psycopg://...` for SQLAlchemy + psycopg3 |
+| `DATABASE_URL` | Neon URL — prefer pooled/serverless string for app traffic. Provider `postgresql://` / `postgres://` URLs are normalized internally to SQLAlchemy’s `postgresql+psycopg://` dialect |
 | `GROQ_API_KEY` | Secret — **server only** |
 | `GROQ_MODEL` | `openai/gpt-oss-20b` |
 | `GROQ_STRUCTURED_OUTPUT_STRICT` | `true` |
@@ -149,6 +149,8 @@ python -m app.scripts.seed_demo_complaints
 ```
 
 SQLAlchemy already uses `pool_pre_ping=True`. Prefer Neon’s pooled connection string for application traffic when available.
+
+VeyraQ normalizes provider-supplied standard PostgreSQL URLs (`postgres://`, `postgresql://`) to SQLAlchemy’s explicit psycopg 3 dialect (`postgresql+psycopg://`) internally. Existing `postgresql+psycopg://` URLs are left unchanged.
 
 ---
 
