@@ -1,41 +1,128 @@
 # VeyraQ
 
-**AI-Assisted Pharmaceutical Complaint Intelligence**
+AI-assisted pharmaceutical customer complaint intake for API and FDF contexts.
 
-VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manufacturing (API and FDF). It helps QA personnel turn unstructured complaint text or documents into structured, reviewable complaint records—with human commit as the final control.
+VeyraQ helps QA personnel turn unstructured complaint text or documents into a structured Log Customer Complaint draft, supports conversational corrections, surfaces advisory risk and related history, and commits only when a human explicitly approves.
 
-> Assessment project for the AI Product Engineer internship at AIVOA.
+Assessment project for the AI Product Engineer internship at AIVOA.
 
-## Status
+---
 
-Investigation Assistance is complete: on-demand AI complaint summary, root cause hypotheses, and CAPA suggestions for QA review (advisory only; does not mutate complaint fields). Related-complaint detection, document intake, and text/correction workflows remain intact.
+## 1. What it is
 
-## Stack
+A focused **complaint intake module** — not a full QMS. It covers intake, structuring, human review, and commit to a QMS-style PostgreSQL record store.
+
+## 2. Why this problem matters
+
+Customer complaints arrive as email, free text, or attachments. Manual transcription is slow and inconsistent. QA still needs provenance they can trust: what came from the customer, what the user corrected, what the model only suggested, and what remains unknown.
+
+## 3. Assessment workflow implemented
+
+1. Paste complaint text or upload PDF/TXT/EML  
+2. AI extracts structured fields (grounded source values)  
+3. Form populates with provenance  
+4. Advisory risk assessment  
+5. Conversational corrections update **only** corrected fields  
+6. Completeness → Needs Information or Ready to Commit  
+7. Optional related-history and on-demand Investigation Assistance  
+8. Human explicitly commits  
+
+## 4. Key design decisions
+
+1. **Grounded source extraction** — evidence spans must appear in the source text; otherwise the field is dropped, not stored as source.  
+2. **Missing stays missing** — no plausible invented quantities, dates, or harm.  
+3. **Corrections are partial patches** — unrelated fields keep value, provenance, and evidence.  
+4. **Provenance** — `source` / `user` / `inferred` / `missing`, co-located with each field value.  
+5. **Source date precision preserved** — dates are intake strings (`April 2026`), not coerced timestamps.  
+6. **AI does not auto-commit** — drafts live in Redux until explicit commit.  
+7. **Related complaints are deterministic** — explainable scores/reasons; no embeddings.  
+8. **RCA outputs are hypotheses** — not confirmed findings.  
+9. **CAPA outputs are suggestions** — not approved actions or a CAPA lifecycle.  
+10. **Documents share the same intelligence workflow** — extract text, then the same LangGraph path.  
+11. **Draft vs committed boundary** — committed rows are immutable through the current API.
+
+## 5. Architecture
+
+```mermaid
+flowchart TD
+  UI[React Workspace<br/>Form + Assistant + Redux]
+  API[FastAPI /api/v1]
+  LG[LangGraph Complaint Workflow]
+  G[Groq]
+  GR[Grounding + Completeness]
+  DOC[Document Service]
+  REL[Related Complaint Service]
+  INV[Investigation Service]
+  CS[Complaint Service]
+  PG[(PostgreSQL)]
+
+  UI -->|REST JSON / multipart| API
+  API --> LG
+  LG --> G
+  LG --> GR
+  API --> DOC
+  API --> REL
+  API --> INV
+  API --> CS
+  CS --> PG
+  REL --> PG
+```
+
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+## 6. AI reliability model
+
+```mermaid
+flowchart TD
+  IN[Text or Document text]
+  EX[Source Extraction]
+  GND[Evidence Grounding]
+  PT[Complaint Patch]
+  RK[Risk Assessment]
+  RH[Related History]
+  CM[Completeness]
+  HR[Human Review]
+  CT[Explicit Commit]
+  COR[Correction message]
+  PATCH[Partial patch only]
+
+  IN --> EX --> GND --> PT --> RK --> RH --> CM --> HR --> CT
+  COR --> PATCH --> PT
+```
+
+Investigation Assistance is a separate on-demand call. It is **not** required for commit and does not mutate complaint fields.
+
+## 7. Feature coverage
+
+| Area | Status |
+| --- | --- |
+| Text + document intake | Implemented |
+| Provenance-aware form | Implemented |
+| Conversational patch corrections | Implemented |
+| Completeness + Ready to Commit | Implemented |
+| Advisory risk | Implemented |
+| Related historical complaints | Implemented |
+| Investigation Assistance (summary / RCA / CAPA) | Implemented |
+| Explicit commit to PostgreSQL | Implemented |
+
+Requirement map: [docs/ASSESSMENT_CHECKLIST.md](docs/ASSESSMENT_CHECKLIST.md)
+
+## 8. Technology stack
 
 | Layer | Technologies |
 | --- | --- |
 | Frontend | React, TypeScript, Vite, Redux Toolkit, CSS Modules, Inter |
 | Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy 2.0, Alembic, PyMuPDF |
 | Database | PostgreSQL |
-| AI | LangGraph StateGraph, Groq (official Python SDK) |
+| AI | LangGraph StateGraph, Groq (official SDK) |
 
-The original assessment references Groq model IDs that are no longer generally available on the current developer tier. VeyraQ preserves Groq as the required provider while keeping the model configurable. The default model is a currently supported Groq model with strict structured-output support.
+Groq model IDs are environment-configurable (`GROQ_MODEL`, default `openai/gpt-oss-20b`). Older assessment example model IDs may no longer be available on current Groq developer access.
 
-## Prerequisites
+## 9. Local setup
 
-- Node.js 22 LTS (or compatible with current Vite)
-- Python 3.12
-- PostgreSQL (required for live readiness checks)
+**Prerequisites:** Node.js 22 LTS, Python 3.12, PostgreSQL.
 
-## Repository layout
-
-```text
-frontend/   React + Vite application
-backend/    FastAPI application
-docs/       Authoritative project documentation
-```
-
-## Frontend setup
+### Frontend
 
 ```bash
 cd frontend
@@ -46,132 +133,104 @@ npm run dev
 
 App: http://localhost:5173
 
-```bash
-npm run build
-npm test -- --run
-```
-
-`VITE_API_BASE_URL` defaults to `http://localhost:8000/api/v1`.
-
-## Backend setup
+### Backend
 
 ```bash
 cd backend
 py -3.12 -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
-
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-Set `GROQ_API_KEY` in `backend/.env`. Leave it empty to boot the API and health checks; Assistant processing then returns 503 without changing the draft.
-
-Optional:
-
-```text
-GROQ_MODEL=openai/gpt-oss-20b
-```
-
-Limits:
-
-- Assistant text messages: 12,000 characters
-- Document uploads: PDF, TXT, or EML · up to 8 MB · up to 20 PDF pages · up to 20,000 extracted characters (rejected if over limit — never silently truncated)
-
-Start the API:
-
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-- Liveness: `GET http://localhost:8000/api/v1/health`
-- Readiness: `GET http://localhost:8000/api/v1/readiness` (requires PostgreSQL)
-- OpenAPI docs: http://localhost:8000/docs
+- Liveness: `GET /api/v1/health`
+- Readiness: `GET /api/v1/readiness` (needs PostgreSQL)
+- OpenAPI: http://localhost:8000/docs
 
-### Database
+## 10. Environment variables
 
-Ensure PostgreSQL is running and create a database matching `DATABASE_URL` in `.env` (default database name: `veyraq`).
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `frontend/.env` | API base (default `http://localhost:8000/api/v1`) |
+| `DATABASE_URL` | `backend/.env` | PostgreSQL SQLAlchemy URL |
+| `CORS_ORIGINS` | `backend/.env` | Allowed browser origins |
+| `GROQ_API_KEY` | `backend/.env` | Groq secret — **never commit** |
+| `GROQ_MODEL` | `backend/.env` | Model id |
 
-PostgreSQL is required for **live** readiness checks and real commit persistence. Automated backend tests use an isolated in-memory SQLite database and do not need PostgreSQL.
+Assistant text limit: 12,000 characters.  
+Documents: PDF/TXT/EML · 8 MB · 20 PDF pages · 20,000 extracted characters (reject, never truncate).
 
-Apply migrations:
+## 11. Database / migrations
 
 ```bash
 cd backend
 alembic upgrade head
-```
-
-Optional fictional history seed (idempotent; for later duplicate demos):
-
-```bash
 python -m app.scripts.seed_demo_complaints
 ```
 
-Complaint API (after migrations):
+Seed data is fictional and idempotent (`CMP-DEMO-*`). Automated tests use in-memory SQLite and do not require PostgreSQL.
 
-- `POST /api/v1/complaints/commit`
-- `GET /api/v1/complaints`
-- `GET /api/v1/complaints/{id}`
-- `POST /api/v1/assistant/process`
-- `POST /api/v1/assistant/process-document`
-- `POST /api/v1/assistant/investigation`
-
-Committed records are not updated or deleted through this assessment API. Uploaded documents are processed in memory only and are not stored.
-
-### Text complaint demo
-
-Paste into VeyraQ Assistant:
-
-```text
-NovaCare Pharmacy reported brown discoloration on Cefixime
-Capsules 200 mg from batch CFX260481. Manufacturing date April
-2026 and expiry March 2028. 24 capsules were affected.
-```
-
-Then correct:
-
-```text
-Correction: the batch is CFX260418 and 30 capsules were affected.
-```
-
-Only explicitly corrected fields should change (plus a refreshed advisory risk assessment when the change is risk-relevant). Commit remains a separate human action.
-
-When enough structured fields exist, the Assistant may also surface **Potential Related Complaints** from committed history. This is an explainable recurrence signal — not an automatic duplicate conclusion.
-
-Use **Generate Investigation Assistance** for an on-demand AI summary, root-cause hypotheses, and CAPA suggestions. These are advisory and require QA review; they are not written into the complaint record.
-
-### Document complaint demo
-
-In the Assistant panel, choose a text-based PDF, TXT, or EML pharmaceutical complaint, then click **Analyze Document**. The draft must be empty (use New Complaint first if needed). Scanned image-only PDFs are rejected clearly; OCR is not available in this build.
-
-### Backend tests
+## 12. Running tests
 
 ```bash
+# Frontend
+cd frontend
+npm run lint
+npm test -- --run
+npm run build
+npm run test:e2e
+
+# Backend
 cd backend
 pytest
+alembic upgrade head --sql
 ```
 
-Readiness and complaint API tests do not require a live PostgreSQL instance.
+Playwright E2E mocks the AI/commit HTTP boundary so CI stays deterministic. It does not inject fake behavior into production runtime.
+
+## 13. Demo scenarios
+
+Reusable fixtures live in [`demo/`](demo/DEMO_DATA.md):
+
+- **Text / FDF:** `demo/complaint-email.txt` — NovaCare / Cefixime / `CFX260481`
+- **PDF / API:** `demo/complaint-report.pdf` — Northstar / Metformin Hydrochloride API
+- **Correction:** `Correction: 30 capsules were affected.`
+- **Related history:** seeded `CMP-DEMO-0001` and `CMP-DEMO-0002`
+
+Recording plan: [docs/DEMO.md](docs/DEMO.md)
+
+## 14. Limitations / production considerations
+
+- Assessment prototype — not a validated production QMS  
+- Authentication / RBAC would be required for real regulated deployment  
+- No electronic-signature / Part 11 implementation  
+- No production OCR for scanned documents  
+- Complaint history search sized for a small assessment dataset  
+- AI recommendations require human QA review  
+- No formal CAPA lifecycle persistence  
+- No external SOP / document retrieval  
+- No real patient or confidential customer data used  
+
+---
 
 ## Documentation
 
 | Document | Purpose |
 | --- | --- |
-| [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Authoritative non-negotiable project context |
-| [docs/PRD.md](docs/PRD.md) | Product requirements and acceptance criteria |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System boundaries and data flow |
-| [docs/DOMAIN.md](docs/DOMAIN.md) | Domain terminology and assumptions |
-| [docs/DESIGN.md](docs/DESIGN.md) | UI/UX direction and design tokens |
-| [docs/RULES.md](docs/RULES.md) | Strict rules for future coding assistants |
-| [docs/PHASES.md](docs/PHASES.md) | Incremental implementation plan |
-| [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | LangGraph workflow, provenance, reliability |
-| [docs/DEMO.md](docs/DEMO.md) | Product and code walkthrough demo plan |
-
-## Core principle
-
-AI assists QA. AI must never silently invent complaint facts. Source, user, inferred, and missing values remain distinguishable. Final commit authority stays with the human.
+| [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Authoritative project context |
+| [docs/PRD.md](docs/PRD.md) | Requirements |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
+| [docs/DOMAIN.md](docs/DOMAIN.md) | Domain assumptions |
+| [docs/DESIGN.md](docs/DESIGN.md) | UI direction |
+| [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | LangGraph + reliability |
+| [docs/ASSESSMENT_CHECKLIST.md](docs/ASSESSMENT_CHECKLIST.md) | Requirement → implementation map |
+| [docs/INTERVIEW_NOTES.md](docs/INTERVIEW_NOTES.md) | Architecture Q&A prep |
+| [docs/DEMO.md](docs/DEMO.md) | Video recording plan |
+| [docs/PHASES.md](docs/PHASES.md) | Implementation phases |
+| [docs/RULES.md](docs/RULES.md) | Coding-assistant rules |

@@ -251,19 +251,29 @@ Implemented together with Phase 5 text intelligence (correction graph path, `/as
 
 ---
 
-## Phase 10 — Playwright critical E2E + demo readiness
+## Phase 10 — Assessment hardening and submission readiness
 
-**Goal:** One critical E2E path + prepare DEMO.md execution.
+**Goal:** Stabilize VeyraQ for AIVOA assessment submission without adding product features.
 
 **Includes:**
-- Playwright path covering intake → populate → patch → readiness/commit (with mocks/stubs as needed)
-- Seed/sample complaints for video
-- README final runbook
-- Verify walkthrough chain for recording
+- Requirement audit (`docs/ASSESSMENT_CHECKLIST.md`)
+- Source-of-truth / security / concurrency / a11y review
+- Demo fixtures under `demo/`
+- Reviewer README, architecture/workflow diagrams, `docs/DEMO.md`, `docs/INTERVIEW_NOTES.md`
+- Stale-request generation guard after Reset/New Complaint
+- Playwright critical path with mocked AI/commit boundary
+- Final regression (lint/test/build/pytest/Alembic SQL)
+
+**Excludes:**
+- New product features, auth, RAG, OCR, extra providers, infra expansions
 
 **Exit criteria:**
-- E2E critical path green in CI or documented local run
-- Product demo and code demo can be recorded from a stable build
+- Feature-frozen product matches assessment workflow
+- Docs accurately describe implemented behavior
+- Live Groq/PostgreSQL verified when keys/services available; otherwise explicitly reported blocked
+- Automated suites green
+
+**Status:** Complete (live Groq + live PostgreSQL may remain environment-blocked; see assessment checklist).
 
 ---
 

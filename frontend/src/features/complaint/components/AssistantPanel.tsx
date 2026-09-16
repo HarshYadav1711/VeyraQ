@@ -257,6 +257,9 @@ export function AssistantPanel({
             >
               Choose file
             </button>
+            <label className={styles.visuallyHidden} htmlFor="assistant-document-input">
+              Choose complaint document file
+            </label>
             <input
               ref={fileInputRef}
               id="assistant-document-input"

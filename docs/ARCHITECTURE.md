@@ -278,5 +278,52 @@ Alembic manages migrations. SQLAlchemy 2.x is the ORM.
 
 ## 12. Still open (deferred)
 
-1. Whether/how recurrence should feed risk severity (explicit later design).
-2. Playwright critical E2E + demo polish.
+None for the assessment feature set. Phase 10 closed the Playwright critical path and demo readiness work. Live Groq/PostgreSQL verification remains an environment responsibility for the candidate machine.
+
+## 13. Architecture diagram (assessment)
+
+```mermaid
+flowchart TD
+  UI[React Workspace]
+  API[FastAPI]
+  LG[LangGraph Complaint Workflow]
+  G[Groq]
+  GR[Grounding]
+  DOC[Document Service]
+  REL[Related Complaint Service]
+  INV[Investigation Service]
+  CS[Complaint Service]
+  PG[(PostgreSQL)]
+
+  UI -->|REST| API
+  API --> LG
+  LG --> G
+  LG --> GR
+  API --> DOC
+  API --> REL
+  API --> INV
+  API --> CS
+  CS --> PG
+```
+
+## 14. AI workflow diagram
+
+```mermaid
+flowchart TD
+  IN[Text / Document]
+  EX[Source Extraction]
+  GND[Grounding]
+  PT[Complaint Patch]
+  RK[Risk Assessment]
+  RH[Related History]
+  CM[Completeness]
+  HR[Human Review]
+  CT[Explicit Commit]
+  COR[Correction]
+  PP[Partial patch]
+
+  IN --> EX --> GND --> PT --> RK --> RH --> CM --> HR --> CT
+  COR --> PP --> PT
+```
+
+Investigation Assistance is on-demand and outside the commit-critical path.

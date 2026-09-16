@@ -1,0 +1,22 @@
+﻿From: qa.intake@novacare-pharmacy.example
+To: complaints@veyraq-demo.example
+Subject: Customer complaint — Cefixime Capsules 200 mg discoloration
+Date: 17 March 2026
+
+Hello QA team,
+
+NovaCare Pharmacy is reporting a quality complaint regarding Cefixime Capsules 200 mg.
+
+Product: Cefixime Capsules 200 mg
+Batch / Lot: CFX260481
+Manufacturing date: April 2026
+Expiry date: March 2028
+Affected quantity: 24 capsules
+
+Issue observed:
+Brown discoloration on multiple capsules from the same bottle. No patient dosing has been reported for the affected packs. Please advise on quarantine and investigation steps.
+
+Complaint received via email from the pharmacy quality contact.
+
+Regards,
+NovaCare Pharmacy — Receiving / Quality Desk

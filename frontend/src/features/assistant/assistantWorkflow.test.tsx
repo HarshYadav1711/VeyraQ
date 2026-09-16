@@ -355,6 +355,62 @@ describe('Assistant text workflow', () => {
     })
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  it('discards a late AI response after Reset / New Complaint', async () => {
+    let resolveFetch: (value: unknown) => void = () => undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve
+          }),
+      ),
+    )
+    HTMLDialogElement.prototype.showModal = function showModal() {
+      this.setAttribute('open', '')
+    }
+    HTMLDialogElement.prototype.close = function close() {
+      this.removeAttribute('open')
+    }
+
+    const store = renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Complaint input'), {
+      target: { value: 'NovaCare Pharmacy reported brown discoloration.' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    })
+    await waitFor(() => {
+      expect(store.getState().assistant.requestStatus).toBe('processing')
+    })
+
+    const generationBeforeReset = store.getState().assistant.requestGeneration
+    fireEvent.click(screen.getByRole('tab', { name: 'Complaint' }))
+    // Reset is disabled while processing — dispatch directly to simulate race.
+    const { resetComplaintDraft } = await import('../complaint/complaintSlice')
+    await act(async () => {
+      store.dispatch(resetComplaintDraft())
+    })
+    expect(store.getState().assistant.requestGeneration).toBe(
+      generationBeforeReset + 1,
+    )
+    expect(store.getState().complaint.fields.product_name.value).toBeNull()
+
+    await act(async () => {
+      resolveFetch({
+        ok: true,
+        json: async () => SUCCESS_BODY,
+      })
+    })
+
+    await waitFor(() => {
+      expect(store.getState().complaint.fields.product_name.value).toBeNull()
+    })
+    expect(store.getState().complaint.status).toBe('pending_triage')
+    expect(store.getState().assistant.requestStatus).toBe('idle')
+    expect(store.getState().assistant.error).toBeNull()
+  })
 })
 
 describe('commit remains available after AI wiring', () => {

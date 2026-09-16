@@ -80,9 +80,13 @@ export interface AssistantState {
   investigationStatus: InvestigationStatus
   investigationError: string | null
   investigationAssistance: InvestigationAssistance | null
+  /** Bumped on Reset/New Complaint so in-flight AI responses cannot corrupt the next draft. */
+  requestGeneration: number
 }
 
-export function createInitialAssistantState(): AssistantState {
+export function createInitialAssistantState(
+  requestGeneration = 0,
+): AssistantState {
   return {
     messages: [],
     requestStatus: 'idle',
@@ -93,8 +97,12 @@ export function createInitialAssistantState(): AssistantState {
     investigationStatus: 'idle',
     investigationError: null,
     investigationAssistance: null,
+    requestGeneration,
   }
 }
+
+/** Sent as rejectValue when a response arrives after Reset/New Complaint. */
+export const DISCARDED_REQUEST = '__discarded__'
 
 export function createAssistantMessageId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

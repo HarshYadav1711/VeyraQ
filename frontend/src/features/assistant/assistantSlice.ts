@@ -16,6 +16,7 @@ import {
 import {
   createAssistantMessageId,
   createInitialAssistantState,
+  DISCARDED_REQUEST,
   type AssistantMessage,
   type AssistantState,
   type InvestigationAssistance,
@@ -51,6 +52,13 @@ function clearInvestigationState(state: AssistantState) {
   }
 }
 
+function isCurrentGeneration(
+  getState: () => RootSliceState,
+  generation: number,
+): boolean {
+  return getState().assistant.requestGeneration === generation
+}
+
 export const processAssistantMessage = createAsyncThunk<
   void,
   ProcessAssistantArgs,
@@ -80,6 +88,7 @@ export const processAssistantMessage = createAsyncThunk<
       )
     }
 
+    const generation = assistant.requestGeneration
     const previousStatus =
       complaint.status === 'processing'
         ? (assistant.statusBeforeProcessing ?? 'pending_triage')
@@ -92,6 +101,9 @@ export const processAssistantMessage = createAsyncThunk<
         message: trimmed,
         fields: complaint.fields,
       })
+      if (!isCurrentGeneration(getState, generation)) {
+        return rejectWithValue(DISCARDED_REQUEST)
+      }
       dispatch(applyFieldPatch(response.patch))
       dispatch(setComplaintStatus(response.status))
       if (response.related_lookup_evaluated) {
@@ -110,6 +122,9 @@ export const processAssistantMessage = createAsyncThunk<
         }),
       )
     } catch (error) {
+      if (!isCurrentGeneration(getState, generation)) {
+        return rejectWithValue(DISCARDED_REQUEST)
+      }
       dispatch(setComplaintStatus(previousStatus))
       if (error instanceof AssistantApiError) {
         return rejectWithValue(
@@ -147,6 +162,7 @@ export const processAssistantDocument = createAsyncThunk<
       }),
     )
 
+    const generation = assistant.requestGeneration
     const previousStatus =
       complaint.status === 'processing'
         ? (assistant.statusBeforeProcessing ?? 'pending_triage')
@@ -156,6 +172,9 @@ export const processAssistantDocument = createAsyncThunk<
 
     try {
       const response = await processComplaintDocument(file, complaint.fields)
+      if (!isCurrentGeneration(getState, generation)) {
+        return rejectWithValue(DISCARDED_REQUEST)
+      }
       dispatch(applyFieldPatch(response.patch))
       dispatch(setComplaintStatus(response.status))
       if (response.related_lookup_evaluated) {
@@ -174,6 +193,9 @@ export const processAssistantDocument = createAsyncThunk<
         }),
       )
     } catch (error) {
+      if (!isCurrentGeneration(getState, generation)) {
+        return rejectWithValue(DISCARDED_REQUEST)
+      }
       dispatch(setComplaintStatus(previousStatus))
       if (error instanceof AssistantApiError) {
         return rejectWithValue(
@@ -196,7 +218,7 @@ export const generateInvestigationAssistance = createAsyncThunk<
 >(
   'assistant/investigation',
   async (_, { getState, rejectWithValue }) => {
-    const { complaint } = getState()
+    const { complaint, assistant } = getState()
     const product = complaint.fields.product_name.value?.trim()
     const description = complaint.fields.complaint_description.value?.trim()
     if (!product || !description) {
@@ -205,9 +227,18 @@ export const generateInvestigationAssistance = createAsyncThunk<
       )
     }
 
+    const generation = assistant.requestGeneration
+
     try {
-      return await postInvestigationAssistance(complaint.fields)
+      const result = await postInvestigationAssistance(complaint.fields)
+      if (!isCurrentGeneration(getState, generation)) {
+        return rejectWithValue(DISCARDED_REQUEST)
+      }
+      return result
     } catch (error) {
+      if (!isCurrentGeneration(getState, generation)) {
+        return rejectWithValue(DISCARDED_REQUEST)
+      }
       if (error instanceof AssistantApiError) {
         return rejectWithValue(
           error.status >= 500 ? SAFE_INVESTIGATION_UNAVAILABLE : error.message,
@@ -278,6 +309,9 @@ const assistantSlice = createSlice({
         state.statusBeforeProcessing = null
       })
       .addCase(processAssistantMessage.rejected, (state, action) => {
+        if (action.payload === DISCARDED_REQUEST) {
+          return
+        }
         state.requestStatus = 'failed'
         state.error = action.payload ?? SAFE_UNAVAILABLE
         state.statusBeforeProcessing = null
@@ -292,6 +326,9 @@ const assistantSlice = createSlice({
         state.statusBeforeProcessing = null
       })
       .addCase(processAssistantDocument.rejected, (state, action) => {
+        if (action.payload === DISCARDED_REQUEST) {
+          return
+        }
         state.requestStatus = 'failed'
         state.error = action.payload ?? SAFE_UNAVAILABLE
         state.statusBeforeProcessing = null
@@ -306,6 +343,9 @@ const assistantSlice = createSlice({
         state.investigationAssistance = action.payload
       })
       .addCase(generateInvestigationAssistance.rejected, (state, action) => {
+        if (action.payload === DISCARDED_REQUEST) {
+          return
+        }
         state.investigationStatus = 'failed'
         state.investigationError =
           action.payload ?? SAFE_INVESTIGATION_UNAVAILABLE
@@ -316,7 +356,9 @@ const assistantSlice = createSlice({
       .addCase(applyFieldPatch, (state) => {
         clearInvestigationState(state)
       })
-      .addCase(resetComplaintDraft, () => createInitialAssistantState())
+      .addCase(resetComplaintDraft, (state) =>
+        createInitialAssistantState(state.requestGeneration + 1),
+      )
   },
 })
 

@@ -34,6 +34,7 @@ export function ComplaintPanel() {
   const isSubmitting = commitStatus === 'submitting'
   const isProcessing = status === 'processing'
   const canCommit = status === 'ready_to_commit' && !isSubmitting
+  const canReset = !isProcessing && !isSubmitting
 
   useEffect(() => {
     if (recentlyUpdatedFields.length === 0) {
@@ -113,6 +114,12 @@ export function ComplaintPanel() {
         <button
           type="button"
           className={styles.secondaryButton}
+          disabled={isCommitted ? false : !canReset}
+          title={
+            !canReset && !isCommitted
+              ? 'Wait for the current request to finish before resetting.'
+              : undefined
+          }
           onClick={() => setConfirmOpen(true)}
         >
           {isCommitted ? 'New Complaint' : 'Reset Complaint'}

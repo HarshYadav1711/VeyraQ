@@ -186,6 +186,7 @@ Do not build a separate marketing landing layout.
 - Document intake: restrained drop/choose area in the Assistant composer; selected `File` stays in component-local state (never Redux). Explicit **Analyze Document** action. Processing copy: “Analyzing complaint document…”. Failures preserve the draft; scanned/unsupported errors ask the user to choose another file rather than offering a meaningless text Retry.
 - Related complaints: compact **Potential Related Complaints** panel beneath the form sections (near assessment/actions). Shows match strength + deterministic reasons. Evaluated empty results use a single restrained line; unevaluated lookups show nothing. Related results live in assistant analysis state and clear on Reset/New Complaint.
 - Investigation Assistance: permanent compact panel after related complaints. One **Generate Investigation Assistance** action (on-demand). Loading: “Preparing investigation assistance…”. Results show AI Summary · Verify, Root Cause Hypotheses, and CAPA Suggestions with a restrained human-review disclaimer. Analysis clears when complaint fields change, AI patches apply, related results refresh, or New/Reset Complaint runs.
+- Phase 10: Reset is disabled while Assistant processing/commit is in flight. In-flight AI responses after Reset/New Complaint are discarded via an Assistant `requestGeneration` guard (no AbortController in Redux).
 ---
 
 ## 10. Accessibility decisions

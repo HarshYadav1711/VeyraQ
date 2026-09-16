@@ -21,23 +21,32 @@ export const commitComplaint = createAsyncThunk<
   CommittedComplaintResponse,
   void,
   { state: { complaint: ComplaintDraftState }; rejectValue: string }
->('complaint/commit', async (_, { getState, rejectWithValue }) => {
-  const { fields, status } = getState().complaint
-  if (status !== 'ready_to_commit') {
-    return rejectWithValue(
-      'Complaint must be ready for review before it can be committed.',
-    )
-  }
-
-  try {
-    return await postCommitComplaint(serializeCommitRequest(fields))
-  } catch (error) {
-    if (error instanceof ComplaintApiError) {
-      return rejectWithValue(error.message)
+>(
+  'complaint/commit',
+  async (_, { getState, rejectWithValue }) => {
+    const { fields, status } = getState().complaint
+    if (status !== 'ready_to_commit') {
+      return rejectWithValue(
+        'Complaint must be ready for review before it can be committed.',
+      )
     }
-    return rejectWithValue('Unable to commit complaint. Please try again.')
-  }
-})
+
+    try {
+      return await postCommitComplaint(serializeCommitRequest(fields))
+    } catch (error) {
+      if (error instanceof ComplaintApiError) {
+        return rejectWithValue(error.message)
+      }
+      return rejectWithValue('Unable to commit complaint. Please try again.')
+    }
+  },
+  {
+    condition: (_, { getState }) => {
+      const { status, commitStatus } = getState().complaint
+      return status === 'ready_to_commit' && commitStatus !== 'submitting'
+    },
+  },
+)
 
 const complaintSlice = createSlice({
   name: 'complaint',

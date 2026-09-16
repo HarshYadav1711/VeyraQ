@@ -176,7 +176,7 @@ Given a valid unstructured complaint text, when the user submits it, then the fo
 Given a text-extractable PDF complaint, when uploaded, then extracted text flows through the AI workflow and populates the form without inventing unread content.
 
 ### AC-3 Patch correction
-Given an existing draft and the message *"The batch is BMX240602 and affected quantity is 48 capsules."*, when processed, then **only** `batch_number` and `affected_quantity` change; all other fields remain unchanged.
+Given an existing draft and the message *"The batch is BMX240602 and affected quantity is 48 capsules."*, when processed, then **only** `batch_lot_number` and `affected_quantity` change; all other fields remain unchanged.
 
 ### AC-4 Missing values
 Given source text that omits a field, when extracted, then that field is Missing / "Not provided" and is not hallucinated.

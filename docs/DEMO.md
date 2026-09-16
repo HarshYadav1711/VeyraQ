@@ -1,187 +1,111 @@
-# DEMO — Product & Engineering Walkthrough Plan
+# DEMO — Final recording plan
 
-## 1. Purpose
-
-This document plans the final **product demo video** and **engineering/code walkthrough video** for the VeyraQ assessment.
-
-It is a storyboard, not application code.
+Two videos are required. Use fictional data from `demo/` and seeded `CMP-DEMO-*` history. Never show `.env` or API keys on screen.
 
 ---
 
-## 2. Demo environment assumptions
+## Shared prep checklist
 
-When demos are recorded (after implementation phases):
-
-- Local frontend (Vite) + FastAPI backend + PostgreSQL running
-- Groq API key configured via environment
-- Sample complaint text and a text-extractable PDF prepared
-- No authentication screens (out of scope)
-
----
-
-## 3. Sample scenario (suggested)
-
-**Persona:** QA specialist logging a customer complaint for an FDF product.
-
-**Raw complaint (text):** a short email-like message including:
-- customer name
-- product name and strength
-- a defect description
-- **omit** batch number and affected quantity initially (to show Missing → correction)
-
-**Correction message:**
-
-> The batch is BMX240602 and affected quantity is 48 capsules.
-
-**Document variant:** same narrative in a simple PDF for upload path.
-
-Exact sample files will be added during implementation; content must not invent regulatory case studies beyond plausible fictional demo data.
+- [ ] PostgreSQL up; `alembic upgrade head`; `python -m app.scripts.seed_demo_complaints`
+- [ ] `GROQ_API_KEY` set locally (not visible on camera)
+- [ ] Backend `uvicorn` + frontend `npm run dev`
+- [ ] `demo/complaint-email.txt` and `demo/complaint-report.pdf` ready
+- [ ] Zoom IDE font; pin files listed in Video 2
+- [ ] Fresh draft (New Complaint) before each major act
 
 ---
 
-## 4. Product demo story (video)
+## VIDEO 1 — Product demonstration (~6–8 min)
 
-**Target length:** concise (roughly 5–10 minutes unless otherwise required).
+### 0:00–0:20 — Intro
+- VeyraQ: AI-assisted pharmaceutical complaint intake (API + FDF)
+- Not a full QMS — intake, review, explicit human commit
+- Core promise: assist QA without inventing facts
 
-### Act A — Context (30–60s)
-- What VeyraQ is: AI-assisted pharmaceutical complaint intake (API/FDF)
-- What it is not: not a full QMS
-- Core principle: AI assists; humans commit; no silent invention of facts
+### 0:20–2:00 — Text complaint
+- Dual pane: form left, Assistant right
+- Paste `demo/complaint-email.txt` (or the short NovaCare / Cefixime paste from README)
+- Show Processing → form populate
+- Call out provenance: Extracted vs Not provided vs AI suggestion · Verify
+- Call out partial dates kept as text (`April 2026`)
+- Point at advisory risk — not a disposition
 
-### Act B — Text intake
-1. Show dual-pane UI (form left, Copilot right).
-2. Paste unstructured complaint into Copilot.
-3. Show Processing status.
-4. Show form population with provenance (source vs missing).
-5. Show advisory risk assessment (suggested severity, next action, initial risk).
-6. Point out Missing fields (“Not provided”) rather than fabricated values.
+### 2:00–3:00 — Missing data / completeness
+- If Needs Information: show which required fields are missing
+- Emphasize: unsupported facts stay missing — no fabricated quantity/patient harm
 
-### Act C — Conversational correction (critical)
-1. Send the batch + quantity correction.
-2. Show **only** those two fields update.
-3. Show brief field highlight.
-4. Emphasize patch behavior as a product requirement.
+### 3:00–4:00 — Conversational correction (critical)
+- Send: `Correction: 30 capsules were affected.`
+- Show **only** affected quantity updates (+ brief highlight)
+- Say why: patch semantics — unrelated fields keep value/provenance/evidence
 
-### Act D — Completeness & commit
-1. Show completeness/readiness move toward Ready to Commit.
-2. Explicitly click Commit.
-3. Show Committed status / persistence confirmation.
+### 4:00–5:00 — Related history + commit
+- Show Potential Related Complaints (`CMP-DEMO-0001` / `0002` for CFX260481)
+- Explain: deterministic recurrence signal, not automatic duplicate close
+- When Ready to Commit → click Commit
+- Show complaint number; stress nothing auto-committed
 
-### Act E — Document path (short)
-1. Upload PDF.
-2. Show extraction → same structuring outcome.
-3. Note: no OCR theater; text PDF only.
+### 5:00–6:30 — Document path + Investigation
+- New Complaint → upload `demo/complaint-report.pdf` → Analyze Document
+- Same structuring path as text
+- Generate Investigation Assistance
+- Call out: summary / hypotheses / CAPA are advisory; fields/status/severity unchanged
 
-### Act F — Optional bonuses (if implemented)
-- Duplicate suggestion and/or root cause/CAPA as **advisory** panels inside the same workflow.
-
-### Closing
-- Restate human authority and provenance trust model.
-
----
-
-## 5. Engineering / code walkthrough story (video)
-
-**Narrative spine (mandatory):**
-
-```text
-frontend input
-  → Redux state
-  → API call
-  → FastAPI endpoint
-  → LangGraph workflow
-  → Groq processing
-  → structured response
-  → form population
-  → risk assessment
-  → persistence
-```
-
-### Segment 1 — Frontend input & Redux
-- Copilot submit handler
-- Dispatch processing action
-- Complaint slice shape (fields + provenance + status)
-
-### Segment 2 — API call & FastAPI
-- Request payload
-- Router/endpoint for intake
-- Pydantic validation
-
-### Segment 3 — LangGraph
-- StateGraph overview
-- `detect_intent` → extract → normalize → validate → completeness → risk → summarize
-- Why one workflow (not multi-agent sprawl)
-
-### Segment 4 — Groq + structured output
-- Central prompts location
-- Env-configured model ID
-- Schema validation before state merge
-- Failure isolation
-
-### Segment 5 — Response → form + risk
-- API DTO → Redux update
-- Provenance rendering
-- AI assessment section
-
-### Segment 6 — Correction path
-- `extract_patch` → `validate_patch` → `apply_patch`
-- Show test or live proof that unrelated fields do not change
-
-### Segment 7 — Persistence
-- Commit endpoint
-- SQLAlchemy model / PostgreSQL row
-- Status Committed
-
-### Optional Segment 8 — Document node
-- PyMuPDF `extract_document_text` then reuse workflow
+### 6:30–end — Close
+- Human authority + provenance trust model
+- Point reviewers to README + `docs/` for engineering depth
 
 ---
 
-## 6. What to show in tests during walkthrough
+## VIDEO 2 — Engineering walkthrough (~7–9 min)
 
-If time permits:
-- Pytest: patch apply leaves unrelated fields unchanged
-- Pytest: invalid LLM payload does not corrupt state
-- Vitest: Redux merge/provenance
-- Playwright: one critical E2E path
+Follow the data path. Prefer ~8–10 files, not 25.
 
----
+### 0:00–0:30 — Frame
+- “One request from Assistant to committed PostgreSQL row”
 
-## 7. Recording checklist
+### 0:30–2:00 — Frontend → API
+1. `AssistantPanel.tsx` — submit / upload
+2. `assistantApi.ts` — `POST /assistant/process`
+3. `assistantSlice.ts` — processing guard + `applyFieldPatch` + generation discard after reset
+4. `complaintSlice.ts` — co-located provenance fields; commit thunk
 
-- [ ] Fresh running stack
-- [ ] `.env` present locally, not shown on screen (no key leakage)
-- [ ] Sample text complaint ready
-- [ ] Sample PDF ready
-- [ ] Correction phrase ready
-- [ ] IDE files pinned for walkthrough (router, graph, prompts, slice, model)
-- [ ] Zoom readable fonts in IDE and browser
-- [ ] Explicit verbal callout of patch-only update
-- [ ] Explicit verbal callout of advisory vs human commit
+### 2:00–4:30 — FastAPI → LangGraph → Groq
+5. `api/routes/assistant.py` — validation, safe 503s, no body logging
+6. `agents/graph.py` — intent → extract/correct → ground → risk → related → completeness
+7. `services/groq_service.py` — only Groq SDK boundary
+8. `agents/prompts.py` + schemas — central prompts; structured outputs
+9. `agents/grounding.py` — evidence must appear in source text
 
----
+**Talking points**
+- Why source facts are grounded
+- Why correction is a partial patch
+- Why related matching is deterministic
 
-## 8. Anti-goals for demos
+### 4:30–6:30 — Documents, related, investigation, commit
+10. `document_service.py` — in-memory PDF/TXT/EML; limits; no OCR
+11. `related_complaint_service.py` — scoring gates + reasons
+12. `investigation_service.py` — one Groq call; non-mutating; supporting-field validation
+13. `complaint_service.py` + `db/models/complaint.py` — server commit validation; JSON metadata; immutable API
 
-Do not spend demo time on:
-- building auth
-- Kubernetes///infra digressions
-- unrelated dashboards
-- claiming regulatory certification
-- live OCR of scans
-
----
-
-## 9. Success criteria for demos
-
-| Demo | Success |
-| --- | --- |
-| Product | Viewer understands intake → review → patch → commit and trusts provenance |
-| Code | Viewer can retell the mandatory chain without confusion |
-| Assessment fit | Curiosity, product thinking, and implementation understanding are visible |
+### 6:30–8:00 — Tests + close
+- Pytest: patch isolation / grounding / investigation non-mutation
+- Vitest: Redux merge + stale-response discard
+- Playwright: mocked critical path (`npm run test:e2e`)
+- Restate: AI assists; humans commit
 
 ---
 
-## 10. Dependency on phases
+## Interview-worthy lines (use naturally)
 
-Demos are recorded after Phase 7 minimum (commit works). Ideal after Phase 10 (E2E + polish). Bonuses appear only if implemented and stable.
+- “The model proposes values with evidence; the backend decides whether they become source.”
+- “A correction is a patch map, not a regenerated complaint.”
+- “Related history has to explain itself — batch equality is exact, never fuzzy.”
+- “Investigation Assistance cannot change severity, priority, status, or fields.”
+- “Commit is an explicit human action validated again on the server.”
+
+---
+
+## Anti-goals
+
+Do not spend time on auth, Kubernetes, marketing UI, OCR theater, or regulatory certification claims.
