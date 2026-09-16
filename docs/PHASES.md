@@ -197,38 +197,57 @@ Implemented together with Phase 5 text intelligence (correction graph path, `/as
 
 **Status:** Complete.
 
-## Phase 8 — Tier 1 remaining bonus + hardening
+## Phase 8 — Explainable related-complaint / recurrence detection
 
-**Goal:** Duplicate detection against committed history (incl. demo seed) and risk polish.
+**Goal:** Deterministic, explainable related-history detection against committed PostgreSQL complaints (no embeddings, no extra LLM call).
 
 **Includes:**
-- `detect_duplicates` optional node wired into workflow/UI context
-- Risk classification refinement within `assess_risk`
-- Pytest/Vitest expansion
-- Error handling UX polish
+- `related_complaint_service` scoring (batch/product/category/description/customer)
+- LangGraph `lookup_related_complaints` node with graceful degradation
+- `related_complaints` on assistant text/document responses
+- Potential Related Complaints review panel
+- Focused Pytest / Vitest coverage
+
+**Excludes:**
+- Vector DB / embeddings / RAG
+- Automatic severity/priority changes from recurrence
+- Root-cause / CAPA suggestions
+- Schema migrations
 
 **Exit criteria:**
-- Tier 1 features demonstrable inside complaint workflow
-- No out-of-scope infrastructure added
+- Cefixime / CFX260481 seed pair surfaces as a strong related match under scoring rules
+- Batch IDs never fuzzy-matched
+- Related lookup failure does not corrupt intake
+- Completeness and risk outputs remain independent of related matches
+
+**Status:** Complete.
 
 ---
 
-## Phase 9 — Tier 2/3 bonuses (only if Tier 1 solid)
+## Phase 9 — Investigation Assistance (summary + RCA hypotheses + CAPA)
 
-**Goal:** Optional advisory intelligence.
+**Goal:** On-demand AI Investigation Assistance: complaint summary, root cause hypotheses, and CAPA suggestions — advisory only, never mutating canonical complaint fields.
 
-**Priority order:**
-1. Root cause hypotheses
-2. CAPA suggestions
-3. Complaint summary (if not already covered by `summarize`)
+**Includes:**
+- `InvestigationService` + one structured Groq call via existing `GroqService`
+- `POST /api/v1/assistant/investigation`
+- Semantic supporting-field validation
+- Frontend Investigation Assistance panel with staleness clearing
+- Focused Pytest / Vitest coverage
 
-**Rules:**
-- Advisory only
-- No full CAPA lifecycle
-- Stay inside Copilot/workflow panels
+**Excludes:**
+- Extra LangGraph / extra LLM providers
+- Embeddings / RAG / web search
+- Automatic severity/status/commit changes
+- Persistence / Alembic migration
 
 **Exit criteria:**
-- Bonuses improve intake narrative without scope creep
+- Explicit user request only (not part of intake/process)
+- Unsupported supporting fields stripped; empty-support hypotheses dropped
+- Complaint fields/status/severity/priority unchanged after generation
+- Analysis clears when complaint or related-history context changes
+
+**Status:** Complete.
 
 ---
 
@@ -259,8 +278,8 @@ Implemented together with Phase 5 text intelligence (correction graph path, `/as
           → 5 Text intake AI
             → 6 Patch corrections
               → 7 Documents
-                → 8 Tier 1 polish / duplicates
-                  → 9 Tier 2/3 optional
+                → 8 Related-history detection
+                  → 9 Investigation Assistance
                     → 10 E2E + demo
 ```
 

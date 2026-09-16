@@ -134,8 +134,8 @@ Failed or invalid model responses shall not corrupt existing complaint state.
 ### FR-12 Configurable Groq model
 Model identifiers shall be environment-configurable; secrets shall not be hard-coded.
 
-### FR-13 Central prompts
-Prompts shall be stored centrally.
+### FR-14 Investigation Assistance (on-demand)
+The system shall provide an explicit, on-demand Investigation Assistance action that generates an AI complaint summary, root cause hypotheses, and CAPA suggestions for QA review. This analysis shall not mutate canonical complaint fields, status, severity, priority, or committed records, and shall not run automatically during ordinary intake.
 
 ---
 

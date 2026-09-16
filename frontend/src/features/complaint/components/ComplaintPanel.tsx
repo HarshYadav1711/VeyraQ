@@ -10,6 +10,8 @@ import {
 } from '../complaintSlice'
 import type { ComplaintFieldKey } from '../complaintTypes'
 import { ComplaintSection } from './ComplaintSection'
+import { RelatedComplaintsPanel } from './RelatedComplaintsPanel'
+import { InvestigationAssistancePanel } from './InvestigationAssistancePanel'
 import styles from './ComplaintPanel.module.css'
 
 const HIGHLIGHT_CLEAR_MS = 1250
@@ -103,6 +105,8 @@ export function ComplaintPanel() {
             onFieldChange={handleFieldChange}
           />
         ))}
+        <RelatedComplaintsPanel />
+        <InvestigationAssistancePanel />
       </div>
 
       <footer className={styles.actions}>

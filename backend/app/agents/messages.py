@@ -19,6 +19,16 @@ def _updated_labels(patch: ComplaintPatch, exclude: set[ComplaintFieldKey] | Non
     return join_field_labels(keys)
 
 
+def append_related_complaint_mention(message: str, related_count: int) -> str:
+    if related_count <= 0:
+        return message
+    noun = "complaint" if related_count == 1 else "complaints"
+    return (
+        f"{message} I also found {related_count} potentially related "
+        f"historical {noun}."
+    )
+
+
 def new_complaint_message(
     *,
     source_patch: ComplaintPatch,
@@ -26,6 +36,7 @@ def new_complaint_message(
     status: ComplaintStatus,
     missing_required_fields: list[str],
     input_kind: str = "text",
+    related_count: int = 0,
 ) -> str:
     extracted = bool(source_patch.changes)
     from_document = input_kind == "document"
@@ -33,19 +44,22 @@ def new_complaint_message(
     if status == ComplaintStatus.READY_TO_COMMIT:
         if from_document:
             if assessment_ran:
-                return (
+                base = (
                     "I extracted the complaint document and prepared an initial risk "
                     "assessment. The record is ready for QA review."
                 )
-            return (
-                "I extracted the complaint document. The record is ready for QA review."
-            )
-        if assessment_ran:
-            return (
+            else:
+                base = (
+                    "I extracted the complaint document. The record is ready for QA review."
+                )
+        elif assessment_ran:
+            base = (
                 "I extracted the complaint and prepared an initial risk "
                 "assessment. The record is ready for QA review."
             )
-        return "I extracted the complaint. The record is ready for QA review."
+        else:
+            base = "I extracted the complaint. The record is ready for QA review."
+        return append_related_complaint_mention(base, related_count)
 
     missing = join_field_labels(missing_required_fields)
     if extracted:
@@ -61,8 +75,12 @@ def new_complaint_message(
             else "I could not extract additional complaint details from the message."
         )
     if missing:
-        return f"{prefix} I still need: {missing} before this record can be ready for review."
-    return prefix
+        base = (
+            f"{prefix} I still need: {missing} before this record can be ready for review."
+        )
+    else:
+        base = prefix
+    return append_related_complaint_mention(base, related_count)
 
 
 def correction_message(
@@ -71,6 +89,7 @@ def correction_message(
     assessment_ran: bool,
     status: ComplaintStatus,
     missing_required_fields: list[str],
+    related_count: int = 0,
 ) -> str:
     updated = _updated_labels(correction_patch)
     if not updated:
@@ -97,4 +116,4 @@ def correction_message(
             parts.append(
                 f"I still need: {missing} before this record can be ready for review."
             )
-    return " ".join(parts)
+    return append_related_complaint_mention(" ".join(parts), related_count)

@@ -1,4 +1,8 @@
 import type { ComplaintFields, ComplaintPatch, ComplaintStatus } from '../complaint/complaintTypes'
+import type {
+  InvestigationAssistance,
+  RelatedComplaintMatch,
+} from './assistantTypes'
 
 export interface AssistantProcessRequest {
   message: string
@@ -18,6 +22,8 @@ export interface AssistantProcessResponse {
   assistant_message: string
   warnings: string[]
   document?: DocumentMetadata | null
+  related_complaints?: RelatedComplaintMatch[]
+  related_lookup_evaluated?: boolean
 }
 
 function apiBaseUrl(): string {
@@ -109,4 +115,36 @@ export async function processComplaintDocument(
   }
 
   return (await response.json()) as AssistantProcessResponse
+}
+
+const FALLBACK_INVESTIGATION_UNAVAILABLE =
+  'Investigation assistance is temporarily unavailable. Your complaint record has not been changed.'
+
+export async function postInvestigationAssistance(
+  fields: ComplaintFields,
+): Promise<InvestigationAssistance> {
+  const response = await fetch(`${apiBaseUrl()}/assistant/investigation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  })
+
+  if (!response.ok) {
+    let message = FALLBACK_INVESTIGATION_UNAVAILABLE
+    try {
+      const payload: unknown = await response.json()
+      const detail = detailFromPayload(payload)
+      if (detail) {
+        message = detail
+      }
+    } catch {
+      // Keep the safe default.
+    }
+    if (response.status >= 500) {
+      message = FALLBACK_INVESTIGATION_UNAVAILABLE
+    }
+    throw new AssistantApiError(message, response.status)
+  }
+
+  return (await response.json()) as InvestigationAssistance
 }

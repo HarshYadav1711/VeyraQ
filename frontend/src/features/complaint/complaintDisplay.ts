@@ -174,3 +174,13 @@ export const COMPLAINT_SECTIONS: readonly ComplaintSectionConfig[] = [
 export function isComplaintEmpty(fields: ComplaintFields): boolean {
   return COMPLAINT_FIELD_KEYS.every((key) => fields[key].value === null)
 }
+
+const FIELD_LABEL_LOOKUP: Partial<Record<ComplaintFieldKey, string>> = Object.fromEntries(
+  COMPLAINT_SECTIONS.flatMap((section) =>
+    section.fields.map((field) => [field.key, field.label] as const),
+  ),
+)
+
+export function complaintFieldLabel(key: string): string {
+  return FIELD_LABEL_LOOKUP[key as ComplaintFieldKey] ?? key
+}

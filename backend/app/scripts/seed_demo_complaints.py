@@ -27,7 +27,8 @@ SEED_COMPLAINTS: list[dict] = [
         "complaint_number": "CMP-DEMO-0001",
         "complaint_source": "Email",
         "customer_name": "Northbridge Pharmacy",
-        "product_name": "Cefixime Capsules",
+        # Aligned with assessment demo intake wording for exact product matching.
+        "product_name": "Cefixime Capsules 200 mg",
         "product_strength_grade": "200 mg",
         "batch_lot_number": "CFX260481",
         "affected_quantity": "120 capsules",
@@ -54,7 +55,7 @@ SEED_COMPLAINTS: list[dict] = [
         "complaint_number": "CMP-DEMO-0002",
         "complaint_source": "Phone",
         "customer_name": "Lakeside Distributors",
-        "product_name": "Cefixime Capsules",
+        "product_name": "Cefixime Capsules 200 mg",
         "product_strength_grade": "200 mg",
         "batch_lot_number": "CFX260481",
         "affected_quantity": "60 capsules",

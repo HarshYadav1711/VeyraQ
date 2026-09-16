@@ -184,6 +184,8 @@ Do not build a separate marketing landing layout.
 - Commit is disabled unless status is `ready_to_commit`; Reset uses a small modal confirmation.
 - Phase 5: Assistant composer is enabled for text/corrections. Conversation messages live in the `assistant` Redux slice, not in complaint fields. While an Assistant request is in flight, complaint status is `processing` and is restored on failure.
 - Document intake: restrained drop/choose area in the Assistant composer; selected `File` stays in component-local state (never Redux). Explicit **Analyze Document** action. Processing copy: “Analyzing complaint document…”. Failures preserve the draft; scanned/unsupported errors ask the user to choose another file rather than offering a meaningless text Retry.
+- Related complaints: compact **Potential Related Complaints** panel beneath the form sections (near assessment/actions). Shows match strength + deterministic reasons. Evaluated empty results use a single restrained line; unevaluated lookups show nothing. Related results live in assistant analysis state and clear on Reset/New Complaint.
+- Investigation Assistance: permanent compact panel after related complaints. One **Generate Investigation Assistance** action (on-demand). Loading: “Preparing investigation assistance…”. Results show AI Summary · Verify, Root Cause Hypotheses, and CAPA Suggestions with a restrained human-review disclaimer. Analysis clears when complaint fields change, AI patches apply, related results refresh, or New/Reset Complaint runs.
 ---
 
 ## 10. Accessibility decisions

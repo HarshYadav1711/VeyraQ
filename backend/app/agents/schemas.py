@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.complaint import ComplaintFieldKey
 
@@ -81,6 +81,52 @@ class RiskAssessmentResult(BaseModel):
     priority: PriorityName | None
     suggested_next_action: str | None
     initial_risk_assessment: str | None
+
+
+RootCauseCategoryName = Literal[
+    "material",
+    "equipment",
+    "method",
+    "people",
+    "measurement",
+    "environment",
+    "other",
+]
+
+CapaSuggestionTypeName = Literal[
+    "immediate_correction",
+    "corrective_action",
+    "preventive_action",
+    "effectiveness_check",
+]
+
+
+class RootCauseHypothesisModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: RootCauseCategoryName
+    hypothesis: str
+    rationale: str
+    supporting_fields: list[str] = Field(default_factory=list)
+    evidence_needed: list[str] = Field(default_factory=list)
+
+
+class CapaSuggestionModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: CapaSuggestionTypeName
+    action: str
+    rationale: str
+
+
+class InvestigationAssistanceResult(BaseModel):
+    """Structured Groq output for on-demand investigation assistance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    complaint_summary: str
+    root_cause_hypotheses: list[RootCauseHypothesisModel] = Field(default_factory=list)
+    capa_suggestions: list[CapaSuggestionModel] = Field(default_factory=list)
 
 
 def is_canonical_field(name: str) -> bool:

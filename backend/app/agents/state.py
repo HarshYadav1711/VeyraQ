@@ -1,5 +1,6 @@
 from typing import Literal, TypedDict
 
+
 InputKind = Literal["text", "document"]
 
 
@@ -20,4 +21,6 @@ class ComplaintGraphState(TypedDict):
     warnings: list[str]
     should_assess_risk: bool
     assessment_ran: bool
+    related_complaints: list[dict[str, object]]
+    related_lookup_evaluated: bool
     request_id: str

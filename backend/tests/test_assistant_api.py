@@ -3,15 +3,17 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.routes.assistant import get_ai_service
+from app.api.routes.assistant import get_ai_service, get_related_lookup
 from app.domain.complaint import ASSISTANT_MESSAGE_MAX_LENGTH, ComplaintFields
 from app.main import app
+from app.services.related_complaint_service import NoOpRelatedComplaintLookup
 from tests.fakes.ai_service import FakeAIService, empty_source_extraction, extracted_fact
 from tests.test_complaint_graph import advisory_risk
 
 
 @pytest.fixture()
 def client() -> Iterator[TestClient]:
+    app.dependency_overrides[get_related_lookup] = lambda: NoOpRelatedComplaintLookup()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -84,6 +86,8 @@ def test_assistant_process_success_with_fake_service(client: TestClient) -> None
     assert body["patch"]["changes"]["product_name"]["provenance"] == "source"
     assert body["patch"]["changes"]["complaint_category"]["provenance"] == "inferred"
     assert "assistant_message" in body
+    assert body["related_complaints"] == []
+    assert body["related_lookup_evaluated"] is False
 
 
 def test_assistant_message_over_limit_returns_422(client: TestClient) -> None:

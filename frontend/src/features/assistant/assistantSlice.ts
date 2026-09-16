@@ -4,11 +4,13 @@ import {
   applyFieldPatch,
   resetComplaintDraft,
   setComplaintStatus,
+  setUserField,
 } from '../complaint/complaintSlice'
 import type { ComplaintDraftState } from '../complaint/complaintTypes'
 import {
   AssistantApiError,
   postAssistantProcess,
+  postInvestigationAssistance,
   processComplaintDocument,
 } from './assistantApi'
 import {
@@ -16,6 +18,8 @@ import {
   createInitialAssistantState,
   type AssistantMessage,
   type AssistantState,
+  type InvestigationAssistance,
+  type RelatedComplaintMatch,
 } from './assistantTypes'
 
 interface RootSliceState {
@@ -35,6 +39,17 @@ interface ProcessDocumentArgs {
 
 const SAFE_UNAVAILABLE =
   'AI processing is temporarily unavailable. Your complaint draft has not been changed.'
+
+const SAFE_INVESTIGATION_UNAVAILABLE =
+  'Investigation assistance is temporarily unavailable. Your complaint record has not been changed.'
+
+function clearInvestigationState(state: AssistantState) {
+  state.investigationAssistance = null
+  state.investigationError = null
+  if (state.investigationStatus !== 'processing') {
+    state.investigationStatus = 'idle'
+  }
+}
 
 export const processAssistantMessage = createAsyncThunk<
   void,
@@ -79,6 +94,14 @@ export const processAssistantMessage = createAsyncThunk<
       })
       dispatch(applyFieldPatch(response.patch))
       dispatch(setComplaintStatus(response.status))
+      if (response.related_lookup_evaluated) {
+        dispatch(
+          setRelatedComplaints({
+            matches: response.related_complaints ?? [],
+            evaluated: true,
+          }),
+        )
+      }
       dispatch(
         addAssistantMessage({
           id: createAssistantMessageId(),
@@ -135,6 +158,14 @@ export const processAssistantDocument = createAsyncThunk<
       const response = await processComplaintDocument(file, complaint.fields)
       dispatch(applyFieldPatch(response.patch))
       dispatch(setComplaintStatus(response.status))
+      if (response.related_lookup_evaluated) {
+        dispatch(
+          setRelatedComplaints({
+            matches: response.related_complaints ?? [],
+            evaluated: true,
+          }),
+        )
+      }
       dispatch(
         addAssistantMessage({
           id: createAssistantMessageId(),
@@ -158,6 +189,39 @@ export const processAssistantDocument = createAsyncThunk<
   },
 )
 
+export const generateInvestigationAssistance = createAsyncThunk<
+  InvestigationAssistance,
+  void,
+  { state: RootSliceState; rejectValue: string }
+>(
+  'assistant/investigation',
+  async (_, { getState, rejectWithValue }) => {
+    const { complaint } = getState()
+    const product = complaint.fields.product_name.value?.trim()
+    const description = complaint.fields.complaint_description.value?.trim()
+    if (!product || !description) {
+      return rejectWithValue(
+        'Product Name and Complaint Description are required before investigation assistance can be generated.',
+      )
+    }
+
+    try {
+      return await postInvestigationAssistance(complaint.fields)
+    } catch (error) {
+      if (error instanceof AssistantApiError) {
+        return rejectWithValue(
+          error.status >= 500 ? SAFE_INVESTIGATION_UNAVAILABLE : error.message,
+        )
+      }
+      return rejectWithValue(SAFE_INVESTIGATION_UNAVAILABLE)
+    }
+  },
+  {
+    condition: (_, { getState }) =>
+      getState().assistant.investigationStatus !== 'processing',
+  },
+)
+
 const assistantSlice = createSlice({
   name: 'assistant',
   initialState: createInitialAssistantState(),
@@ -174,10 +238,28 @@ const assistantSlice = createSlice({
     ) {
       state.statusBeforeProcessing = action.payload
     },
+    setRelatedComplaints(
+      state,
+      action: PayloadAction<{
+        matches: RelatedComplaintMatch[]
+        evaluated: boolean
+      }>,
+    ) {
+      state.relatedComplaints = action.payload.matches
+      state.relatedLookupEvaluated = action.payload.evaluated
+      // Related-history context changed — prior investigation is stale.
+      clearInvestigationState(state)
+    },
     clearAssistantError(state) {
       state.error = null
       if (state.requestStatus === 'failed') {
         state.requestStatus = 'idle'
+      }
+    },
+    clearInvestigationError(state) {
+      state.investigationError = null
+      if (state.investigationStatus === 'failed') {
+        state.investigationStatus = 'idle'
       }
     },
     resetAssistant() {
@@ -214,6 +296,26 @@ const assistantSlice = createSlice({
         state.error = action.payload ?? SAFE_UNAVAILABLE
         state.statusBeforeProcessing = null
       })
+      .addCase(generateInvestigationAssistance.pending, (state) => {
+        state.investigationStatus = 'processing'
+        state.investigationError = null
+      })
+      .addCase(generateInvestigationAssistance.fulfilled, (state, action) => {
+        state.investigationStatus = 'ready'
+        state.investigationError = null
+        state.investigationAssistance = action.payload
+      })
+      .addCase(generateInvestigationAssistance.rejected, (state, action) => {
+        state.investigationStatus = 'failed'
+        state.investigationError =
+          action.payload ?? SAFE_INVESTIGATION_UNAVAILABLE
+      })
+      .addCase(setUserField, (state) => {
+        clearInvestigationState(state)
+      })
+      .addCase(applyFieldPatch, (state) => {
+        clearInvestigationState(state)
+      })
       .addCase(resetComplaintDraft, () => createInitialAssistantState())
   },
 })
@@ -222,7 +324,9 @@ export const {
   addUserMessage,
   addAssistantMessage,
   rememberStatusBeforeProcessing,
+  setRelatedComplaints,
   clearAssistantError,
+  clearInvestigationError,
   resetAssistant,
 } = assistantSlice.actions
 

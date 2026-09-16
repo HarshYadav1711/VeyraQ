@@ -231,6 +231,36 @@ class ComplaintListItem(BaseModel):
     committed_at: datetime
 
 
+class RelatedMatchStrength(str, Enum):
+    STRONG = "strong"
+    MODERATE = "moderate"
+
+
+class RelatedComplaintMatch(BaseModel):
+    """Decision-support signal — not a proven duplicate determination."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    complaint_id: UUID
+    complaint_number: str
+    score: float
+    match_strength: RelatedMatchStrength
+    reasons: list[str]
+    product_name: str
+    batch_lot_number: str
+    customer_name: str
+    complaint_category: str
+    complaint_description: str
+    committed_at: datetime
+
+    @field_validator("score")
+    @classmethod
+    def score_in_unit_interval(cls, value: float) -> float:
+        if value < 0.0 or value > 1.0:
+            raise ValueError("score must be between 0.0 and 1.0 inclusive")
+        return value
+
+
 class CommitValidationError(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

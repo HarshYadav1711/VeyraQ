@@ -1,0 +1,209 @@
+.panel {
+  margin: 0.85rem 0 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+  background: var(--vq-ai-tint);
+}
+
+.header {
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--vq-text);
+}
+
+.badge {
+  margin: 0.25rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--vq-primary);
+}
+
+.disclaimer {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--vq-secondary);
+}
+
+.introCopy,
+.hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.8125rem;
+  color: var(--vq-text);
+}
+
+.hint {
+  color: var(--vq-secondary);
+}
+
+.toolbar {
+  margin-bottom: 0.65rem;
+}
+
+.generateButton {
+  min-height: 2.15rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--vq-radius);
+  border: 1px solid var(--vq-primary);
+  background: var(--vq-surface);
+  color: var(--vq-primary);
+  cursor: pointer;
+}
+
+.generateButton:hover:not(:disabled) {
+  background: #fff;
+}
+
+.generateButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  border-color: var(--vq-border);
+  color: var(--vq-secondary);
+}
+
+.processing {
+  margin: 0.55rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--vq-primary);
+}
+
+.error {
+  margin: 0.55rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--vq-critical);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.block {
+  min-width: 0;
+}
+
+.blockTitle {
+  margin: 0 0 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--vq-text);
+}
+
+.summary,
+.bodyText,
+.capaRationale {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--vq-text);
+  overflow-wrap: anywhere;
+}
+
+.emptyNote {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--vq-secondary);
+}
+
+.hypothesisList,
+.capaList,
+.bulletList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hypothesisList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.hypothesisCard {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+  background: var(--vq-surface);
+}
+
+.category {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--vq-primary);
+}
+
+.hypothesis {
+  margin: 0.3rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--vq-text);
+  overflow-wrap: anywhere;
+}
+
+.subLabel {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--vq-secondary);
+}
+
+.bulletList {
+  padding-left: 1.05rem;
+  list-style: disc;
+  font-size: 0.75rem;
+  color: var(--vq-text);
+}
+
+.bulletList li {
+  margin: 0.1rem 0;
+  overflow-wrap: anywhere;
+}
+
+.capaGroup {
+  margin-top: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--vq-border);
+  border-radius: var(--vq-radius);
+  background: var(--vq-surface);
+}
+
+.capaType {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--vq-text);
+}
+
+.capaList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.capaAction {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--vq-text);
+  overflow-wrap: anywhere;
+}
+
+.capaRationale {
+  margin-top: 0.15rem;
+  color: var(--vq-secondary);
+  font-size: 0.75rem;
+}

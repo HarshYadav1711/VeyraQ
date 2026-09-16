@@ -54,15 +54,21 @@ from app.domain.complaint import (
     ComplaintPatch,
     ComplaintStatus,
     FieldProvenance,
+    RelatedComplaintMatch,
     field_value_is_blank,
     find_missing_required_fields,
     is_complaint_fields_empty,
+)
+from app.services.related_complaint_config import RELATED_MATCH_FIELDS
+from app.services.related_complaint_service import (
+    NoOpRelatedComplaintLookup,
+    RelatedComplaintLookup,
 )
 
 logger = logging.getLogger(__name__)
 
 RouteAfterIntent = Literal["extract_source_facts", "extract_correction_patch", "check_completeness"]
-RouteAfterRiskGate = Literal["assess_risk", "check_completeness"]
+RouteAfterRiskGate = Literal["assess_risk", "lookup_related_complaints"]
 
 
 def build_initial_state(
@@ -90,6 +96,8 @@ def build_initial_state(
         "warnings": [],
         "should_assess_risk": False,
         "assessment_ran": False,
+        "related_complaints": [],
+        "related_lookup_evaluated": False,
         "request_id": request_id,
     }
 
@@ -150,7 +158,11 @@ def _has_risk_context(fields: ComplaintFields) -> bool:
     )
 
 
-def build_complaint_graph(ai_service: AIService):
+def build_complaint_graph(
+    ai_service: AIService,
+    related_lookup: RelatedComplaintLookup | None = None,
+):
+    lookup: RelatedComplaintLookup = related_lookup or NoOpRelatedComplaintLookup()
     def determine_intent(state: ComplaintGraphState) -> dict[str, object]:
         _log_node("determine_intent", state["request_id"])
         current = fields_from_dump(state["current_fields"])
@@ -312,6 +324,45 @@ def build_complaint_graph(ai_service: AIService):
             "merged_fields": fields_to_dump(merged),
         }
 
+    def lookup_related_complaints(state: ComplaintGraphState) -> dict[str, object]:
+        _log_node("lookup_related_complaints", state["request_id"])
+        if state["blocked"]:
+            return {
+                "related_complaints": [],
+                "related_lookup_evaluated": False,
+            }
+
+        if state["intent"] == "correction":
+            correction = patch_from_dump(state["correction_patch"])
+            if not patch_field_keys(correction) & RELATED_MATCH_FIELDS:
+                return {
+                    "related_complaints": list(state["related_complaints"]),
+                    "related_lookup_evaluated": False,
+                }
+
+        merged = fields_from_dump(state["merged_fields"])
+        warnings = list(state["warnings"])
+        try:
+            result = lookup.find_related(merged)
+        except Exception:  # noqa: BLE001 — bonus feature must not fail intake
+            logger.exception(
+                "related.lookup failed request_id=%s",
+                state["request_id"],
+            )
+            warnings.append("related_lookup_failed")
+            return {
+                "related_complaints": [],
+                "related_lookup_evaluated": False,
+                "warnings": warnings,
+            }
+
+        serialized = [match.model_dump(mode="json") for match in result.matches]
+        return {
+            "related_complaints": serialized,
+            "related_lookup_evaluated": result.evaluated,
+            "warnings": warnings,
+        }
+
     def check_completeness(state: ComplaintGraphState) -> dict[str, object]:
         _log_node("check_completeness", state["request_id"])
         merged = fields_from_dump(state["merged_fields"])
@@ -343,6 +394,9 @@ def build_complaint_graph(ai_service: AIService):
     def prepare_response(state: ComplaintGraphState) -> dict[str, object]:
         _log_node("prepare_response", state["request_id"])
         status = ComplaintStatus(state["target_status"])
+        related_count = (
+            len(state["related_complaints"]) if state["related_lookup_evaluated"] else 0
+        )
         if state["blocked"]:
             return {"assistant_message": BLOCKED_NEW_COMPLAINT_MESSAGE}
 
@@ -352,6 +406,7 @@ def build_complaint_graph(ai_service: AIService):
                 assessment_ran=state["assessment_ran"],
                 status=status,
                 missing_required_fields=state["missing_required_fields"],
+                related_count=related_count,
             )
             return {"assistant_message": message}
 
@@ -361,6 +416,7 @@ def build_complaint_graph(ai_service: AIService):
             status=status,
             missing_required_fields=state["missing_required_fields"],
             input_kind=state["input_kind"],
+            related_count=related_count,
         )
         return {"assistant_message": message}
 
@@ -374,7 +430,7 @@ def build_complaint_graph(ai_service: AIService):
     def route_risk(state: ComplaintGraphState) -> RouteAfterRiskGate:
         if state["should_assess_risk"]:
             return "assess_risk"
-        return "check_completeness"
+        return "lookup_related_complaints"
 
     builder = StateGraph(ComplaintGraphState)
     builder.add_node("determine_intent", determine_intent)
@@ -386,6 +442,7 @@ def build_complaint_graph(ai_service: AIService):
     builder.add_node("should_assess_risk", should_assess_risk)
     builder.add_node("assess_risk", assess_risk)
     builder.add_node("merge_assessment", merge_assessment)
+    builder.add_node("lookup_related_complaints", lookup_related_complaints)
     builder.add_node("check_completeness", check_completeness)
     builder.add_node("prepare_response", prepare_response)
 
@@ -409,11 +466,12 @@ def build_complaint_graph(ai_service: AIService):
         route_risk,
         {
             "assess_risk": "assess_risk",
-            "check_completeness": "check_completeness",
+            "lookup_related_complaints": "lookup_related_complaints",
         },
     )
     builder.add_edge("assess_risk", "merge_assessment")
-    builder.add_edge("merge_assessment", "check_completeness")
+    builder.add_edge("merge_assessment", "lookup_related_complaints")
+    builder.add_edge("lookup_related_complaints", "check_completeness")
     builder.add_edge("check_completeness", "prepare_response")
     builder.add_edge("prepare_response", END)
     return builder.compile()
@@ -425,3 +483,10 @@ def result_patch(state: ComplaintGraphState) -> ComplaintPatch:
         patch_from_dump(state["correction_patch"]),
         patch_from_dump(state["assessment_patch"]),
     )
+
+
+def result_related_complaints(state: ComplaintGraphState) -> list[RelatedComplaintMatch]:
+    matches: list[RelatedComplaintMatch] = []
+    for item in state["related_complaints"]:
+        matches.append(RelatedComplaintMatch.model_validate(item))
+    return matches

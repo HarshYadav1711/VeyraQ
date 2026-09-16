@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.agents.graph import build_complaint_graph, build_initial_state, result_patch
-from app.api.routes.assistant import get_ai_service
+from app.api.routes.assistant import get_ai_service, get_related_lookup
 from app.domain.complaint import (
     ComplaintFieldKey,
     ComplaintFieldValue,
@@ -18,6 +18,7 @@ from app.domain.complaint import (
 )
 from app.main import app
 from app.services.document_limits import POPULATED_DRAFT_MESSAGE
+from app.services.related_complaint_service import NoOpRelatedComplaintLookup
 from tests.fakes.ai_service import FakeAIService, empty_source_extraction, extracted_fact
 from tests.test_complaint_graph import advisory_risk
 
@@ -44,6 +45,7 @@ def _pdf_bytes(text: str) -> bytes:
 
 @pytest.fixture()
 def client() -> Iterator[TestClient]:
+    app.dependency_overrides[get_related_lookup] = lambda: NoOpRelatedComplaintLookup()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

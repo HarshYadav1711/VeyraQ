@@ -72,6 +72,8 @@ Principles:
 | Persistence layer | SQLAlchemy models + Alembic migrations |
 | Completeness / risk modules | Workflow nodes producing advisory + readiness signals |
 | Document service | In-memory PDF/TXT/EML text extraction (no persistence, no OCR) |
+| Related-complaint service | Deterministic scoring against committed history (no embeddings / no extra LLM) |
+| Investigation service | On-demand summary + RCA hypotheses + CAPA suggestions (one Groq structured call; not persisted) |
 
 ---
 
@@ -82,10 +84,10 @@ Principles:
 1. User submits complaint text in the Assistant composer.
 2. Frontend adds the user message to Assistant state, sets complaint status to `processing` (prior status is remembered for failure restore), and `POST /api/v1/assistant/process` with the message plus current `ComplaintFields`.
 3. FastAPI validates the request (blank/oversized text → 422) and invokes the LangGraph complaint graph. Client status is not trusted.
-4. Graph: `determine_intent` → extract / ground / merge → optional `assess_risk` → `check_completeness` → `prepare_response`.
+4. Graph: `determine_intent` → extract / ground / merge → optional `assess_risk` → `lookup_related_complaints` → `check_completeness` → `prepare_response`.
 5. Groq calls happen only through `GroqService` (structured JSON-schema outputs, Pydantic-validated).
-6. API returns `{ intent, patch, status, missing_required_fields, assistant_message }`.
-7. On success, Redux `applyFieldPatch` merges only `patch.changes` and sets the server status. On failure, fields and prior status are unchanged.
+6. API returns `{ intent, patch, status, missing_required_fields, assistant_message, related_complaints, related_lookup_evaluated }`.
+7. On success, Redux `applyFieldPatch` merges only `patch.changes` and sets the server status. Related matches are stored in assistant analysis state (not `ComplaintFields`). On failure, fields and prior status are unchanged.
 
 ### 4.2 Correction (patch)
 
@@ -109,14 +111,23 @@ If the draft is already populated and intent is a different new complaint, the g
 
 Scanned/image-only PDFs fail with a clear 422. OCR is intentionally not implemented.
 
-### 4.4 Commit
+### 4.4 Investigation Assistance (on-demand)
+
+1. After reviewing the draft (and optional related history), the user explicitly clicks **Generate Investigation Assistance**.
+2. Frontend posts current `ComplaintFields` to `POST /api/v1/assistant/investigation`.
+3. Backend requires `product_name` and `complaint_description`; optionally loads related-history signals server-side.
+4. `InvestigationService` performs **one** structured Groq call (no additional LangGraph) and semantically validates supporting fields.
+5. Response is derived analysis only — never a `ComplaintPatch`. Complaint fields, status, severity, and priority are unchanged.
+6. Analysis is transient client state and clears when complaint fields or related-history results change.
+
+### 4.5 Commit
 
 1. Frontend enables commit only when status is Ready to Commit (per server/client rules aligned with completeness).
 2. User explicitly confirms commit.
 3. FastAPI persists Committed record in PostgreSQL.
 4. Redux reflects Committed status.
 
-### 4.5 Failure isolation
+### 4.6 Failure isolation
 
 If Groq/LangGraph fails or returns invalid schema:
 - API returns a clear error.
@@ -133,6 +144,7 @@ Implemented under **`/api/v1`**:
 | --- | --- |
 | `POST /assistant/process` | Text complaint extraction and conversational correction |
 | `POST /assistant/process-document` | Document upload (PDF/TXT/EML) → text extraction → same LangGraph workflow |
+| `POST /assistant/investigation` | On-demand Investigation Assistance (summary / RCA hypotheses / CAPA) |
 | `POST /complaints/commit` | Explicit human commit |
 | `GET /complaints` | List committed complaints |
 | `GET /complaints/{id}` | Retrieve a committed complaint |
@@ -261,8 +273,10 @@ Alembic manages migrations. SQLAlchemy 2.x is the ORM.
 | Groq model | Environment `GROQ_MODEL`; default `openai/gpt-oss-20b` (strict structured output) |
 | Assistant input limit | 12,000 characters |
 | Document intake | In-memory PDF/TXT/EML extraction via `document_service`; PyMuPDF; no persistence; no OCR |
+| Related history | Deterministic scoring over up to 100 recent committed complaints; explainable reasons; no vector DB |
+| Investigation Assistance | On-demand derived analysis via `InvestigationService` (not a second LangGraph); transient; never mutates ComplaintFields |
 
 ## 12. Still open (deferred)
 
-1. Duplicate detection against committed history (later phase).
-2. Tier 2/3 advisory bonuses (root cause / CAPA / summary) when Tier 1 is solid.
+1. Whether/how recurrence should feed risk severity (explicit later design).
+2. Playwright critical E2E + demo polish.

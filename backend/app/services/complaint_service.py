@@ -17,6 +17,7 @@ from app.domain.complaint import (
     find_missing_required_fields,
 )
 from app.repositories.complaint_repository import HISTORY_LIMIT, ComplaintRepository
+from app.services.related_complaint_service import RelatedHistoryRecord
 
 
 class CommitValidationException(Exception):
@@ -146,3 +147,21 @@ class ComplaintService:
 
     def list_history(self, *, limit: int = HISTORY_LIMIT) -> list[ComplaintListItem]:
         return [complaint_to_list_item(item) for item in self._repo.list_committed(limit=limit)]
+
+    def list_related_history(self, *, limit: int = HISTORY_LIMIT) -> list[RelatedHistoryRecord]:
+        """Bounded committed history projection for related-complaint scoring."""
+        records: list[RelatedHistoryRecord] = []
+        for item in self._repo.list_committed(limit=limit):
+            records.append(
+                RelatedHistoryRecord(
+                    id=item.id,
+                    complaint_number=item.complaint_number,
+                    product_name=item.product_name,
+                    batch_lot_number=item.batch_lot_number,
+                    customer_name=item.customer_name,
+                    complaint_category=item.complaint_category,
+                    complaint_description=item.complaint_description,
+                    committed_at=item.committed_at,
+                )
+            )
+        return records

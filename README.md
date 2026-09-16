@@ -8,7 +8,7 @@ VeyraQ is an AI-powered customer complaint intake module for pharmaceutical manu
 
 ## Status
 
-Document complaint intake is complete: PDF / TXT / EML extraction feeds the same LangGraph workflow as text intake (grounding, risk, completeness, patch merge). Scanned-image OCR is intentionally not included because the assessment does not require production-grade OCR.
+Investigation Assistance is complete: on-demand AI complaint summary, root cause hypotheses, and CAPA suggestions for QA review (advisory only; does not mutate complaint fields). Related-complaint detection, document intake, and text/correction workflows remain intact.
 
 ## Stack
 
@@ -119,6 +119,7 @@ Complaint API (after migrations):
 - `GET /api/v1/complaints/{id}`
 - `POST /api/v1/assistant/process`
 - `POST /api/v1/assistant/process-document`
+- `POST /api/v1/assistant/investigation`
 
 Committed records are not updated or deleted through this assessment API. Uploaded documents are processed in memory only and are not stored.
 
@@ -139,6 +140,10 @@ Correction: the batch is CFX260418 and 30 capsules were affected.
 ```
 
 Only explicitly corrected fields should change (plus a refreshed advisory risk assessment when the change is risk-relevant). Commit remains a separate human action.
+
+When enough structured fields exist, the Assistant may also surface **Potential Related Complaints** from committed history. This is an explainable recurrence signal — not an automatic duplicate conclusion.
+
+Use **Generate Investigation Assistance** for an on-demand AI summary, root-cause hypotheses, and CAPA suggestions. These are advisory and require QA review; they are not written into the complaint record.
 
 ### Document complaint demo
 

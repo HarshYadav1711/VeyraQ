@@ -174,6 +174,18 @@ Other fields may legitimately be unavailable and do **not** block Ready to Commi
 
 Duplicate detection (when implemented) uses **committed** PostgreSQL history plus small fictional seed data. No vector database.
 
+Related-complaint / recurrence matching (implemented) is a **decision-support signal**, not a proven duplicate determination. Matching uses exact normalized batch equality, normalized product/category equality, light customer equality, and stdlib description similarity. A candidate must include at least one structured signal (product, batch, or category) before description similarity can surface it. Related matches do **not** change Ready-to-Commit rules or automatic severity.
+
+### Investigation assistance (project-level)
+
+On-demand Investigation Assistance may produce:
+
+- an **AI complaint summary** (derived; not written into `complaint_description`)
+- **root cause hypotheses** (investigation directions — not confirmed root causes)
+- **CAPA suggestions** (advisory actions — not approved CAPA)
+
+RCA category labels (Material, Equipment, Method / Process, People, Measurement, Environment, Other) are a VeyraQ organization model for this assessment — not a claimed universal pharmaceutical taxonomy. Hypotheses must cite populated supporting fields; unsupported references are removed and unsupported hypotheses are dropped.
+
 ---
 
 ## 8. API vs FDF assumptions

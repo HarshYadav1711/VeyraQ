@@ -34,6 +34,8 @@ Groq is the LLM provider. Model identifiers come from environment configuration 
 | `assistant_message` | Deterministic UI message (no extra phrasing LLM call) |
 | `warnings` | Internal grounding/debug notes (not shown in the UI) |
 | `should_assess_risk` / `assessment_ran` | Risk-gate flags |
+| `related_complaints` | Serialized related-history matches (decision support) |
+| `related_lookup_evaluated` | True when history lookup ran with enough comparison data |
 | `request_id` | Logging correlation (no complaint text logged) |
 
 **Rule:** Failed Groq/schema errors abort the request. The API returns 503 and the client does not apply a patch.
@@ -79,7 +81,17 @@ Risk-relevant correction fields: `product_name`, `product_strength_grade`, `batc
 
 If a populated draft is classified as a new complaint, routing skips extraction and returns a safe message. The draft is not replaced.
 
-### 3.4 Document path
+### 3.4 Related complaint lookup
+
+| Node | Purpose |
+| --- | --- |
+| `lookup_related_complaints` | Deterministic related-history scoring against committed PostgreSQL records |
+
+Runs after assessment merge (or after the risk gate when assessment is skipped). Does **not** change severity/priority or completeness. On repository/history failure: empty related results + warning; intake patch still returned.
+
+Correction path: re-run only when the correction patch intersects `RELATED_MATCH_FIELDS` (`product_name`, `batch_lot_number`, `complaint_category`, `complaint_description`, `customer_name`).
+
+### 3.5 Document path
 
 Document bytes are **not** parsed inside LangGraph. FastAPI uses `app/services/document_service.py` to extract plain text (PyMuPDF / TXT / EML) in memory, then invokes the same compiled graph with:
 
@@ -89,15 +101,11 @@ Document bytes are **not** parsed inside LangGraph. FastAPI uses `app/services/d
 
 Because the draft must be empty, `determine_intent` deterministically selects `new_complaint` with **no** intent LLM call. Source grounding, risk, and completeness are unchanged.
 
-### 3.5 Optional later nodes
+### 3.6 Optional later nodes
 
-| Node | Tier | Purpose |
-| --- | --- | --- |
-| `detect_duplicates` | 1 | Suggest possible duplicate complaints |
-| `suggest_root_causes` | 2 | Advisory root-cause hypotheses |
-| `suggest_capa` | 2 | Advisory CAPA suggestions |
+Investigation Assistance (summary, root-cause hypotheses, CAPA suggestions) is implemented as an **on-demand** `InvestigationService` call — not an automatic LangGraph node — so intake stays focused and inexpensive.
 
-These integrate into the same graph/UI context—not separate products.
+Remaining optional workflow nodes (if ever needed) stay advisory and inside the complaint UI context.
 
 ---
 
@@ -119,6 +127,8 @@ START
       ↓            │
  merge_assessment  │
       └──────┬─────┘
+             ↓
+ lookup_related_complaints
              ↓
    check_completeness
              ↓
@@ -143,6 +153,9 @@ START
       ↓            │
  merge_assessment  │
       └──────┬─────┘
+             ↓
+ lookup_related_complaints
+   (skipped when correction fields are unrelated to matching)
              ↓
    check_completeness
              ↓
@@ -173,7 +186,20 @@ On extraction failure: HTTP error; no fake extraction; draft unchanged.
 
 ### Follow-up
 
-Not implemented in Phase 5. If added later, answers must not invent missing source facts and must not silently patch fields unless the user clearly requests a correction.
+Not implemented as free-form Q&A in the core graph. Investigation Assistance is a separate on-demand endpoint (`POST /assistant/investigation`) that must not invent missing source facts and must not patch complaint fields.
+
+### Investigation Assistance (on-demand)
+
+```
+POST /assistant/investigation
+  → require product_name + complaint_description
+  → optional related-history context (server-side)
+  → one Groq structured_completion (investigation_assistance)
+  → semantic supporting-field validation
+  → InvestigationAssistanceResponse
+```
+
+Not part of `/assistant/process` or `/assistant/process-document`.
 
 ---
 
@@ -293,11 +319,9 @@ Expected: only `batch_lot_number` and `affected_quantity` change.
 | Feature | Node / output | UI placement |
 | --- | --- | --- |
 | Completeness Checker | `check_completeness` | Status + missing list in form/Copilot |
-| Duplicate Detection | `detect_duplicates` | Copilot advisory / contextual banner |
+| Related Complaint Detection | `lookup_related_complaints` | Potential Related Complaints panel (decision support) |
+| Investigation Assistance | `InvestigationService` (on-demand) | Investigation Assistance panel (summary / hypotheses / CAPA) |
 | AI Risk Classification | `assess_risk` | AI initial assessment section |
-| Root Cause Hypotheses | `suggest_root_causes` | Advisory panel / Copilot |
-| CAPA Suggestions | `suggest_capa` | Advisory panel / Copilot |
-| Complaint Summary | `summarize` | Copilot / header summary |
 
 ---
 

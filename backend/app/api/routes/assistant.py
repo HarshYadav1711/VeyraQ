@@ -9,20 +9,39 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from sqlalchemy.orm import Session
 
-from app.agents.graph import build_complaint_graph, build_initial_state, result_patch
+from app.agents.graph import (
+    build_complaint_graph,
+    build_initial_state,
+    result_patch,
+    result_related_complaints,
+)
 from app.agents.protocol import AIService
+from app.db.session import get_db
 from app.domain.complaint import (
     ASSISTANT_MESSAGE_MAX_LENGTH,
     ComplaintFields,
     ComplaintPatch,
     ComplaintStatus,
+    RelatedComplaintMatch,
     is_complaint_fields_empty,
 )
 from app.services.ai_errors import AIServiceError
+from app.services.complaint_service import ComplaintService
 from app.services.document_limits import POPULATED_DRAFT_MESSAGE
 from app.services.document_service import DocumentValidationError, extract_document
 from app.services.groq_service import GroqService
+from app.services.investigation_service import (
+    InvestigationAssistanceResponse,
+    InvestigationService,
+    InvestigationValidationError,
+    SAFE_INVESTIGATION_UNAVAILABLE,
+)
+from app.services.related_complaint_service import (
+    RelatedComplaintLookup,
+    RelatedComplaintService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +83,17 @@ class AssistantProcessResponse(BaseModel):
     assistant_message: str
     warnings: list[str] = Field(default_factory=list)
     document: DocumentMetadata | None = None
+    related_complaints: list[RelatedComplaintMatch] = Field(default_factory=list)
+    related_lookup_evaluated: bool = False
 
 
 def get_ai_service() -> AIService:
     return GroqService.from_settings()
+
+
+def get_related_lookup(db: Session = Depends(get_db)) -> RelatedComplaintLookup:
+    service = ComplaintService(db)
+    return RelatedComplaintService(service.list_related_history)
 
 
 def _response_from_graph_result(
@@ -91,6 +117,8 @@ def _response_from_graph_result(
         assistant_message=result["assistant_message"],
         warnings=result["warnings"],
         document=document,
+        related_complaints=result_related_complaints(result),
+        related_lookup_evaluated=bool(result.get("related_lookup_evaluated", False)),
     )
 
 
@@ -123,6 +151,7 @@ def _parse_current_fields(raw: str) -> ComplaintFields:
 def process_assistant_message(
     request: AssistantProcessRequest,
     ai_service: AIService = Depends(get_ai_service),
+    related_lookup: RelatedComplaintLookup = Depends(get_related_lookup),
 ) -> AssistantProcessResponse:
     request_id = str(uuid.uuid4())
     logger.info(
@@ -130,7 +159,7 @@ def process_assistant_message(
         request_id,
         getattr(ai_service, "model_id", "unknown"),
     )
-    graph = build_complaint_graph(ai_service)
+    graph = build_complaint_graph(ai_service, related_lookup)
     try:
         result = graph.invoke(
             build_initial_state(
@@ -165,6 +194,7 @@ async def process_assistant_document(
     file: UploadFile = File(...),
     current_fields: str = Form(...),
     ai_service: AIService = Depends(get_ai_service),
+    related_lookup: RelatedComplaintLookup = Depends(get_related_lookup),
 ) -> AssistantProcessResponse:
     request_id = str(uuid.uuid4())
     fields = _parse_current_fields(current_fields)
@@ -205,7 +235,7 @@ async def process_assistant_document(
         getattr(ai_service, "model_id", "unknown"),
     )
 
-    graph = build_complaint_graph(ai_service)
+    graph = build_complaint_graph(ai_service, related_lookup)
     try:
         result = graph.invoke(
             build_initial_state(
@@ -230,3 +260,58 @@ async def process_assistant_document(
             document_type=extracted.document_type,
         ),
     )
+
+
+class InvestigationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fields: ComplaintFields
+
+
+@router.post(
+    "/investigation",
+    response_model=InvestigationAssistanceResponse,
+    responses={
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Insufficient complaint context",
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": "Investigation assistance unavailable",
+        },
+    },
+)
+def generate_investigation_assistance(
+    request: InvestigationRequest,
+    ai_service: AIService = Depends(get_ai_service),
+    related_lookup: RelatedComplaintLookup = Depends(get_related_lookup),
+) -> InvestigationAssistanceResponse:
+    """On-demand derived analysis. Does not mutate complaint fields or status."""
+    request_id = str(uuid.uuid4())
+    logger.info(
+        "assistant.investigation start request_id=%s model=%s",
+        request_id,
+        getattr(ai_service, "model_id", "unknown"),
+    )
+    service = InvestigationService(ai_service, related_lookup)
+    try:
+        result = service.generate(request.fields)
+    except InvestigationValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.message,
+        ) from None
+    except AIServiceError:
+        logger.info("assistant.investigation failed request_id=%s", request_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SAFE_INVESTIGATION_UNAVAILABLE,
+        ) from None
+
+    logger.info(
+        "assistant.investigation success request_id=%s related_used=%s hypotheses=%s capa=%s",
+        request_id,
+        result.related_history_used,
+        len(result.root_cause_hypotheses),
+        len(result.capa_suggestions),
+    )
+    return result
