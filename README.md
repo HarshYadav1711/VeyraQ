@@ -158,13 +158,15 @@ uvicorn app.main:app --reload --port 8000
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `frontend/.env` | API base (default `http://localhost:8000/api/v1`) |
+| `VITE_MAX_UPLOAD_BYTES` | `frontend/.env` | Client upload limit (default `4194304` / 4 MiB) |
 | `DATABASE_URL` | `backend/.env` | PostgreSQL SQLAlchemy URL |
-| `CORS_ORIGINS` | `backend/.env` | Allowed browser origins |
+| `CORS_ORIGINS` | `backend/.env` | Allowed browser origins (comma-separated) |
 | `GROQ_API_KEY` | `backend/.env` | Groq secret — **never commit** |
 | `GROQ_MODEL` | `backend/.env` | Model id |
+| `MAX_UPLOAD_BYTES` | `backend/.env` | Server upload limit (default `4194304` / 4 MiB) |
 
 Assistant text limit: 12,000 characters.  
-Documents: PDF/TXT/EML · 8 MB · 20 PDF pages · 20,000 extracted characters (reject, never truncate).
+Documents: PDF/TXT/EML · **4 MiB** · 20 PDF pages · 20,000 extracted characters (reject, never truncate).
 
 ## 11. Database / migrations
 
@@ -205,7 +207,13 @@ Reusable fixtures live in [`demo/`](demo/DEMO_DATA.md):
 
 Recording plan: [docs/DEMO.md](docs/DEMO.md)
 
-## 14. Limitations / production considerations
+## 14. Production deployment (Vercel)
+
+Deploy the monorepo as **two Vercel projects** (frontend Vite + backend FastAPI) with Neon PostgreSQL and Groq.
+
+Full guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+## 15. Limitations / production considerations
 
 - Assessment prototype — not a validated production QMS  
 - Authentication / RBAC would be required for real regulated deployment  
@@ -216,6 +224,7 @@ Recording plan: [docs/DEMO.md](docs/DEMO.md)
 - No formal CAPA lifecycle persistence  
 - No external SOP / document retrieval  
 - No real patient or confidential customer data used  
+- Vercel preview origins are not CORS-whitelisted by default  
 
 ---
 
@@ -230,6 +239,7 @@ Recording plan: [docs/DEMO.md](docs/DEMO.md)
 | [docs/DESIGN.md](docs/DESIGN.md) | UI direction |
 | [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | LangGraph + reliability |
 | [docs/ASSESSMENT_CHECKLIST.md](docs/ASSESSMENT_CHECKLIST.md) | Requirement → implementation map |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Vercel + Neon production deployment |
 | [docs/INTERVIEW_NOTES.md](docs/INTERVIEW_NOTES.md) | Architecture Q&A prep |
 | [docs/DEMO.md](docs/DEMO.md) | Video recording plan |
 | [docs/PHASES.md](docs/PHASES.md) | Implementation phases |

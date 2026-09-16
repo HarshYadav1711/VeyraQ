@@ -185,7 +185,7 @@ describe('Assistant document workflow', () => {
     )
     fireEvent.change(input, { target: { files: [file] } })
     expect(
-      screen.getByText(/maximum upload size of 8 MB/),
+      screen.getByText(/maximum upload size of 4 MB/),
     ).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })

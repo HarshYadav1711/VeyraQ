@@ -27,6 +27,7 @@ Statuses reflect verification performed during Phase 10 hardening (local automat
 | Complaint Summary | Investigation Assistance summary | Investigation tests | Verified |
 | AI Risk Classification | Advisory severity/priority/risk narrative | Risk node tests | Verified |
 | GitHub repository | Project monorepo layout | `git status` hygiene review | Verified (local) |
+| Vercel deployment prep | Two projects (`frontend/` + `backend/`); Neon + Groq; `docs/DEPLOYMENT.md` | Entrypoint + tests prepared; live Vercel deploy is manual | Prep ready |
 | Product demonstration video | Script in `docs/DEMO.md` Video 1 | Recording plan ready; video not produced by Phase 10 | Plan ready |
 | Engineering walkthrough video | Script in `docs/DEMO.md` Video 2 | Recording plan ready; video not produced by Phase 10 | Plan ready |
 

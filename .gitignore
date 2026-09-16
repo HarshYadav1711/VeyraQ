@@ -24,6 +24,9 @@ test-results/
 blob-report/
 playwright/.cache/
 
+# Vercel
+.vercel/
+
 # Editors / OS
 .vscode/
 .idea/

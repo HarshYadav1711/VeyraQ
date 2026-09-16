@@ -1,6 +1,7 @@
 """Centralized document intake limits for the assessment build."""
 
-MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+from app.core.config import settings
+
 MAX_PDF_PAGES = 20
 MAX_EXTRACTED_CHARACTERS = 20_000
 
@@ -20,10 +21,6 @@ SCANNED_PDF_MESSAGE = (
 
 UNSUPPORTED_TYPE_MESSAGE = (
     "Unsupported document type. Upload a PDF, TXT, or EML complaint file."
-)
-
-FILE_TOO_LARGE_MESSAGE = (
-    f"Document exceeds the maximum upload size of {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
 )
 
 TOO_MANY_PAGES_MESSAGE = (
@@ -49,3 +46,18 @@ EMPTY_TEXT_MESSAGE = "No readable text could be extracted from the document."
 POPULATED_DRAFT_MESSAGE = (
     "Start a New Complaint before analyzing another complaint document."
 )
+
+
+def max_upload_bytes() -> int:
+    """Configured maximum upload size (default 4 MiB for Vercel-compatible deploys)."""
+    return settings.MAX_UPLOAD_BYTES
+
+
+def file_too_large_message() -> str:
+    megabytes = max(1, max_upload_bytes() // (1024 * 1024))
+    return f"Document exceeds the maximum upload size of {megabytes} MB."
+
+
+# Back-compat aliases used by services/tests (resolved at import from settings).
+MAX_UPLOAD_BYTES = max_upload_bytes()
+FILE_TOO_LARGE_MESSAGE = file_too_large_message()

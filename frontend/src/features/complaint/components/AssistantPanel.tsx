@@ -16,6 +16,7 @@ import {
 import { ASSISTANT_MESSAGE_MAX_LENGTH } from '../../assistant/assistantTypes'
 import {
   formatFileSize,
+  MAX_UPLOAD_BYTES,
   validateSelectedDocument,
 } from '../../assistant/documentLimits'
 import styles from './AssistantPanel.module.css'
@@ -272,7 +273,7 @@ export function AssistantPanel({
             <p className={styles.uploadMeta}>
               Supported: PDF · TXT · EML
               <br />
-              Up to 8 MB
+              Up to {Math.max(1, Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024)))} MB
             </p>
           </div>
 

@@ -1,6 +1,19 @@
-/** Shared document intake limits (must match backend document_limits). */
+/** Shared document intake limits (must match backend MAX_UPLOAD_BYTES default). */
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+function resolveMaxUploadBytes(): number {
+  const raw = import.meta.env.VITE_MAX_UPLOAD_BYTES
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const parsed = Number(raw)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+  // Default matches backend Settings.MAX_UPLOAD_BYTES (4 MiB, Vercel-safe).
+  return 4 * 1024 * 1024
+}
+
+export const MAX_UPLOAD_BYTES = resolveMaxUploadBytes()
+
 export const SUPPORTED_DOCUMENT_EXTENSIONS = ['.pdf', '.txt', '.eml'] as const
 
 export type SupportedDocumentExtension =
@@ -9,8 +22,11 @@ export type SupportedDocumentExtension =
 export const UNSUPPORTED_DOCUMENT_MESSAGE =
   'Unsupported document type. Choose a PDF, TXT, or EML complaint file.'
 
-export const FILE_TOO_LARGE_MESSAGE =
-  'Document exceeds the maximum upload size of 8 MB.'
+function uploadLimitMegabytes(): number {
+  return Math.max(1, Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024)))
+}
+
+export const FILE_TOO_LARGE_MESSAGE = `Document exceeds the maximum upload size of ${uploadLimitMegabytes()} MB.`
 
 export function documentExtension(filename: string): string {
   const trimmed = filename.trim()

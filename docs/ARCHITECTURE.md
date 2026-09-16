@@ -151,7 +151,7 @@ Implemented under **`/api/v1`**:
 | `GET /health` | Liveness |
 | `GET /readiness` | Readiness including DB |
 
-Assistant request text is limited to **12,000 characters**. Document uploads are limited to **8 MB**, **20 PDF pages**, and **20,000 extracted characters** (reject, never silently truncate). Blank messages return 422. AI provider failures return 503 without mutating the client draft.
+Assistant request text is limited to **12,000 characters**. Document uploads are limited to **4 MiB**, **20 PDF pages**, and **20,000 extracted characters** (reject, never silently truncate). Blank messages return 422. AI provider failures return 503 without mutating the client draft.
 
 Request/response contracts use Pydantic models shared conceptually with frontend types.
 

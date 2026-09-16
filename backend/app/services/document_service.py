@@ -22,16 +22,16 @@ import pymupdf
 from app.services.document_limits import (
     EMPTY_TEXT_MESSAGE,
     ENCRYPTED_PDF_MESSAGE,
-    FILE_TOO_LARGE_MESSAGE,
     MAX_EXTRACTED_CHARACTERS,
     MAX_PDF_PAGES,
-    MAX_UPLOAD_BYTES,
     SCANNED_PDF_MESSAGE,
     SUPPORTED_EXTENSIONS,
     TEXT_TOO_LONG_MESSAGE,
     TOO_MANY_PAGES_MESSAGE,
     UNREADABLE_DOCUMENT_MESSAGE,
     UNSUPPORTED_TYPE_MESSAGE,
+    file_too_large_message,
+    max_upload_bytes,
 )
 
 logger = logging.getLogger(__name__)
@@ -259,8 +259,8 @@ def extract_document(
 
     if byte_size == 0:
         raise DocumentValidationError(UNREADABLE_DOCUMENT_MESSAGE, status_code=422)
-    if byte_size > MAX_UPLOAD_BYTES:
-        raise DocumentValidationError(FILE_TOO_LARGE_MESSAGE, status_code=413)
+    if byte_size > max_upload_bytes():
+        raise DocumentValidationError(file_too_large_message(), status_code=413)
 
     document_type = _detect_document_type(presentation_name, content_type)
     page_count: int | None = None
