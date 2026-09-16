@@ -44,6 +44,7 @@ from app.agents.schemas import (
     RiskAssessmentResult,
     SourceExtractionResult,
 )
+from app.agents.source_semantics import complaint_source_duplicates_customer_name
 from app.agents.state import ComplaintGraphState
 from app.domain.complaint import (
     RISK_RELEVANT_FIELDS,
@@ -209,6 +210,19 @@ def build_complaint_graph(
                 warnings.append(f"ungrounded_evidence:{key.value}")
                 continue
             changes[key] = _source_value(value, evidence)
+
+        source_field = changes.get(ComplaintFieldKey.COMPLAINT_SOURCE)
+        customer_field = changes.get(ComplaintFieldKey.CUSTOMER_NAME)
+        if (
+            source_field is not None
+            and customer_field is not None
+            and complaint_source_duplicates_customer_name(
+                source_field.value,
+                customer_field.value,
+            )
+        ):
+            del changes[ComplaintFieldKey.COMPLAINT_SOURCE]
+            warnings.append("semantic_reject:complaint_source_equals_customer_name")
 
         description = normalize_optional_text(source_text)
         if description is not None:

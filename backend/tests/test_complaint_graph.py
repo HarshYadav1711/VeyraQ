@@ -314,3 +314,78 @@ def test_populated_draft_new_complaint_does_not_overwrite() -> None:
     assert merged.product_name.model_dump() == product_before
     assert "source_extraction" not in service.calls
     assert "existing" in result["assistant_message"].lower() or "new complaint" in result["assistant_message"].lower()
+
+
+def test_pharmacy_category_source_accepted_with_customer_name() -> None:
+    extraction = grounded_apollo_extraction()
+    extraction.complaint_source = extracted_fact("Pharmacy", "Apollo Pharmacy")
+    service = FakeAIService(source=extraction, risk=advisory_risk())
+    result = _run(service, APOLLO_TEXT)
+    patch = result_patch(result)
+
+    assert patch.changes[ComplaintFieldKey.CUSTOMER_NAME].value == "Apollo Pharmacy"
+    assert patch.changes[ComplaintFieldKey.CUSTOMER_NAME].provenance == FieldProvenance.SOURCE
+    assert patch.changes[ComplaintFieldKey.COMPLAINT_SOURCE].value == "Pharmacy"
+    assert patch.changes[ComplaintFieldKey.COMPLAINT_SOURCE].provenance == FieldProvenance.SOURCE
+    assert patch.changes[ComplaintFieldKey.COMPLAINT_SOURCE].evidence == "Apollo Pharmacy"
+
+
+def test_complaint_source_equal_to_customer_name_is_rejected() -> None:
+    extraction = grounded_apollo_extraction()
+    extraction.complaint_source = extracted_fact("Apollo Pharmacy", "Apollo Pharmacy")
+    service = FakeAIService(source=extraction, risk=advisory_risk())
+    result = _run(service, APOLLO_TEXT)
+    patch = result_patch(result)
+    merged = fields_from_dump(result["merged_fields"])
+
+    assert patch.changes[ComplaintFieldKey.CUSTOMER_NAME].value == "Apollo Pharmacy"
+    assert ComplaintFieldKey.COMPLAINT_SOURCE not in patch.changes
+    assert merged.complaint_source.value is None
+    assert merged.complaint_source.provenance == FieldProvenance.MISSING
+    assert "semantic_reject:complaint_source_equals_customer_name" in result["warnings"]
+
+
+def test_email_channel_and_company_name_both_accepted() -> None:
+    text = (
+        "Complaint received by email from ABC Formulations Ltd. regarding "
+        "tablet damage."
+    )
+    extraction = empty_source_extraction(
+        customer_name=extracted_fact("ABC Formulations Ltd.", "ABC Formulations Ltd."),
+        complaint_source=extracted_fact("Email", "email"),
+        product_name=extracted_fact("tablet", "tablet"),
+    )
+    service = FakeAIService(source=extraction, risk=advisory_risk())
+    result = _run(service, text)
+    patch = result_patch(result)
+
+    assert patch.changes[ComplaintFieldKey.CUSTOMER_NAME].value == "ABC Formulations Ltd."
+    assert patch.changes[ComplaintFieldKey.COMPLAINT_SOURCE].value == "Email"
+    assert patch.changes[ComplaintFieldKey.COMPLAINT_SOURCE].evidence == "email"
+
+
+def test_null_complaint_source_remains_missing_when_unsupported() -> None:
+    text = "ABC Formulations Ltd. reported foreign particulate."
+    extraction = empty_source_extraction(
+        customer_name=extracted_fact("ABC Formulations Ltd.", "ABC Formulations Ltd."),
+    )
+    service = FakeAIService(source=extraction, risk=advisory_risk())
+    result = _run(service, text)
+    patch = result_patch(result)
+    merged = fields_from_dump(result["merged_fields"])
+
+    assert patch.changes[ComplaintFieldKey.CUSTOMER_NAME].value == "ABC Formulations Ltd."
+    assert ComplaintFieldKey.COMPLAINT_SOURCE not in patch.changes
+    assert merged.complaint_source.value is None
+    assert merged.complaint_source.provenance == FieldProvenance.MISSING
+
+
+def test_duplicate_source_customer_rejection_yields_needs_information() -> None:
+    extraction = grounded_apollo_extraction()
+    extraction.complaint_source = extracted_fact("Apollo Pharmacy", "Apollo Pharmacy")
+    service = FakeAIService(source=extraction, risk=advisory_risk())
+    result = _run(service, APOLLO_TEXT)
+
+    assert result["target_status"] == "needs_information"
+    assert "complaint_source" in result["missing_required_fields"]
+    assert ComplaintFieldKey.COMPLAINT_SOURCE not in result_patch(result).changes
